@@ -11,9 +11,8 @@ import { formatCurrency } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, CreditCard, CheckCircle } from 'lucide-react';
-import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { Loader2, CheckCircle, Truck, CreditCard, Copy } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 // Create a checkout form schema
 const checkoutFormSchema = z.object({
@@ -24,30 +23,17 @@ const checkoutFormSchema = z.object({
   address: z.string().min(5, { message: 'Address is required' }),
   city: z.string().min(2, { message: 'City is required' }),
   state: z.string().min(2, { message: 'State is required' }),
-  zipCode: z.string().min(5, { message: 'Zip code is required' })
+  zipCode: z.string().min(5, { message: 'Zip code is required' }),
+  notes: z.string().optional()
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
-// Dummy stripePromise for demo purposes
-const stripePromise = loadStripe('pk_test_sample');
-
 const CheckoutPage = () => {
-  return (
-    <Elements stripe={stripePromise}>
-      <CheckoutForm />
-    </Elements>
-  );
-};
-
-const CheckoutForm = () => {
   const [, setLocation] = useLocation();
   const { cartItems, clearCart } = useCart();
   const { toast } = useToast();
-  const stripe = useStripe();
-  const elements = useElements();
   const [paymentStep, setPaymentStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
-  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
 
@@ -70,19 +56,29 @@ const CheckoutForm = () => {
       address: '',
       city: '',
       state: '',
-      zipCode: ''
+      zipCode: '',
+      notes: ''
     }
   });
 
   const createOrderMutation = useMutation({
     mutationFn: async (data: CheckoutFormValues & { items: any[], total: number }) => {
-      const response = await apiRequest('POST', '/api/orders', data);
+      const response = await apiRequest('POST', '/api/orders', {
+        customerName: `${data.firstName} ${data.lastName}`,
+        customerEmail: data.email,
+        shippingAddress: `${data.address}, ${data.city}, ${data.state} ${data.zipCode}`,
+        phone: data.phone,
+        notes: data.notes,
+        items: data.items,
+        total: data.total
+      });
       return response.json();
     },
     onSuccess: (data) => {
       setOrderId(data.id);
       clearCart();
       setPaymentStep('confirmation');
+      setProcessing(false);
     },
     onError: () => {
       toast({
@@ -100,41 +96,33 @@ const CheckoutForm = () => {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!stripe || !elements) {
-      return;
-    }
-    
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      return;
-    }
-    
     setProcessing(true);
-    setPaymentError(null);
     
-    // This would normally use Stripe to create a payment
-    // For this demo, we'll simulate a successful payment
+    // Get shipping data from form
+    const shippingData = form.getValues();
     
-    setTimeout(() => {
-      // Get shipping data from form
-      const shippingData = form.getValues();
-      
-      // Create order
-      createOrderMutation.mutate({
-        ...shippingData,
-        items: cartItems.map(item => ({
-          juiceId: item.juiceId,
-          quantity: item.quantity,
-          price: item.juice.price
-        })),
-        total
-      });
-    }, 1500);
+    // Create order with bank transfer payment method
+    createOrderMutation.mutate({
+      ...shippingData,
+      items: cartItems.map(item => ({
+        juiceId: item.juiceId,
+        quantity: item.quantity,
+        price: item.juice.price
+      })),
+      total
+    });
   };
 
   const returnToCart = () => {
     setLocation('/');
+  };
+
+  const copyAccountDetails = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied to clipboard",
+      description: "Account details copied successfully!",
+    });
   };
 
   if (cartItems.length === 0 && paymentStep !== 'confirmation') {
@@ -291,6 +279,24 @@ const CheckoutForm = () => {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Order Notes (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Special delivery instructions or other notes" 
+                            className="h-24 resize-none"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
                   <div className="flex justify-between mt-6">
                     <Button type="button" variant="outline" onClick={returnToCart}>
@@ -309,21 +315,73 @@ const CheckoutForm = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Payment Information</h2>
               <form onSubmit={handlePaymentSubmit} className="space-y-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Card Information</label>
-                    <div className="border rounded-md p-3">
-                      {/* For demo purposes - in a real app, this would be the Stripe CardElement */}
-                      <div className="h-10 flex items-center text-gray-600">
-                        <CreditCard className="h-5 w-5 mr-2" />
-                        <span>Demo Card: 4242 4242 4242 4242 | 12/28 | 123</span>
-                      </div>
+                <div className="p-4 border rounded-md bg-gray-50">
+                  <div className="flex items-center mb-4">
+                    <Truck className="h-5 w-5 mr-2 text-primary" />
+                    <h3 className="font-medium">Delivery Information</h3>
+                  </div>
+                  <div className="text-sm space-y-1 text-gray-600 pl-7">
+                    <p><span className="font-medium">Name:</span> {form.getValues('firstName')} {form.getValues('lastName')}</p>
+                    <p><span className="font-medium">Address:</span> {form.getValues('address')}, {form.getValues('city')}, {form.getValues('state')} {form.getValues('zipCode')}</p>
+                    <p><span className="font-medium">Contact:</span> {form.getValues('phone')}</p>
+                    <p><span className="font-medium">Email:</span> {form.getValues('email')}</p>
+                  </div>
+                </div>
+                
+                <div className="p-4 border rounded-md bg-green-50">
+                  <div className="flex items-center mb-4">
+                    <CreditCard className="h-5 w-5 mr-2 text-primary" />
+                    <h3 className="font-medium">Bank Transfer Details</h3>
+                  </div>
+                  <div className="text-sm space-y-3 pl-7">
+                    <div className="flex justify-between items-center">
+                      <p><span className="font-medium">Bank:</span> First National Bank</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={() => copyAccountDetails("First National Bank")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p><span className="font-medium">Account Name:</span> Sip of Eden LLC</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={() => copyAccountDetails("Sip of Eden LLC")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p><span className="font-medium">Account Number:</span> 1234567890</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={() => copyAccountDetails("1234567890")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p><span className="font-medium">Routing Number:</span> 987654321</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={() => copyAccountDetails("987654321")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                    <div className="mt-3 text-xs bg-white p-3 rounded border border-green-200">
+                      <p>Please include your name and order number in the payment reference. Your order will be processed once payment is received.</p>
                     </div>
                   </div>
-                  
-                  {paymentError && (
-                    <div className="text-destructive text-sm">{paymentError}</div>
-                  )}
                 </div>
                 
                 <div className="flex justify-between mt-6">
@@ -342,7 +400,7 @@ const CheckoutForm = () => {
                         Processing...
                       </>
                     ) : (
-                      <>Complete Purchase</>
+                      <>Complete Order</>
                     )}
                   </Button>
                 </div>
@@ -356,8 +414,17 @@ const CheckoutForm = () => {
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <h2 className="text-2xl font-semibold mb-2">Thank You For Your Order!</h2>
-              <p className="mb-4">Your order #{orderId || '00000'} has been placed successfully.</p>
-              <p className="mb-6">We've sent a confirmation email with your order details.</p>
+              <p className="mb-2">Your order #{orderId || '00000'} has been placed successfully.</p>
+              <p className="mb-4">We've sent a confirmation email with your order details and payment instructions.</p>
+              <div className="bg-gray-50 p-4 rounded-md text-left mb-6">
+                <h3 className="font-medium mb-2">Next Steps:</h3>
+                <ol className="list-decimal list-inside text-sm space-y-1">
+                  <li>Complete your bank transfer using the provided details</li>
+                  <li>Include your order number ({orderId || '00000'}) in the payment reference</li>
+                  <li>Once payment is received, we'll prepare your order for shipping</li>
+                  <li>You'll receive an email notification when your order ships</li>
+                </ol>
+              </div>
               <Link href="/">
                 <Button>Return to Shop</Button>
               </Link>
@@ -404,7 +471,13 @@ const CheckoutForm = () => {
             
             {paymentStep === 'confirmation' && (
               <div className="mt-4 p-3 bg-green-50 text-green-800 rounded-md">
-                <p className="text-sm">A receipt has been sent to your email.</p>
+                <p className="text-sm">Thank you for your order! Please complete your bank transfer to finalize your purchase.</p>
+              </div>
+            )}
+            
+            {paymentStep === 'payment' && (
+              <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md">
+                <p className="text-sm">Your order will be processed once payment is received.</p>
               </div>
             )}
           </div>
