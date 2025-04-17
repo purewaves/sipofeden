@@ -75,64 +75,64 @@ export class MemStorage implements IStorage {
     // Add sample juices
     const sampleJuices: InsertJuice[] = [
       {
-        name: "Green Detox",
-        description: "Kale, cucumber, green apple, mint, and a hint of lemon.",
-        price: 8.99,
-        imageUrl: "https://images.unsplash.com/photo-1622597467836-f3e6808b4a07?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-        category: "Detox",
+        name: "Liquid Sunset",
+        description: "Carrot, turmeric, pineapple, and ginger blend for immunity boosting.",
+        price: 3500,
+        imageUrl: "/assets/fae075af-fc0e-481c-8512-a972f44425b6-removebg-preview.png",
+        category: "Immunity",
         stock: 85,
         featured: true,
-        sku: "JC-GD-001"
+        sku: "JC-LS-001"
       },
       {
-        name: "Berry Blast",
-        description: "Strawberry, blueberry, raspberry, and apple juice blend.",
-        price: 7.99,
-        imageUrl: "https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-        category: "Antioxidant",
+        name: "Green Guardian",
+        description: "Kale, cucumber, green apple, mint, and a hint of lemon for detoxification.",
+        price: 3200,
+        imageUrl: "/assets/10f5e9d3-8a86-4858-8ad1-5859e7e98e89-removebg-preview.png",
+        category: "Detox",
         stock: 62,
         featured: true,
-        sku: "JC-BB-002"
+        sku: "JC-GG-002"
       },
       {
-        name: "Citrus Sunrise",
-        description: "Orange, grapefruit, pineapple, and carrot blend.",
-        price: 6.99,
-        imageUrl: "https://images.unsplash.com/photo-1613478223719-2ab802602423?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-        category: "Immune Boost",
-        stock: 38,
+        name: "Berry Bliss",
+        description: "Strawberry, blueberry, raspberry, and apple juice blend rich in antioxidants.",
+        price: 3500,
+        imageUrl: "/assets/8e75a215-9279-4c1f-8c70-c51150da25a5-removebg-preview.png",
+        category: "Antioxidant",
+        stock: 74,
         featured: true,
-        sku: "JC-CS-003"
+        sku: "JC-BB-003"
       },
       {
-        name: "Tropical Paradise",
-        description: "Mango, pineapple, passion fruit, and coconut water.",
-        price: 9.99,
-        imageUrl: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-        category: "Energy",
-        stock: 12,
+        name: "Zesty Citrus",
+        description: "Orange, lemon, and grapefruit with a hint of ginger for immune support.",
+        price: 3000,
+        imageUrl: "/assets/ac4187c6-a203-4f78-852d-d28399fba46d-removebg-preview.png",
+        category: "Immunity",
+        stock: 92,
         featured: false,
-        sku: "JC-TP-004"
+        sku: "JC-ZC-004"
       },
       {
-        name: "Beet Energizer",
-        description: "Beetroot, apple, ginger, and lemon for natural energy.",
-        price: 8.49,
-        imageUrl: "https://images.unsplash.com/photo-1576506295286-5cda18df43e7?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+        name: "Energy Boost",
+        description: "Beetroot, apple, ginger, and lemon for natural energy enhancement.",
+        price: 3700,
+        imageUrl: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
         category: "Energy",
         stock: 0,
         featured: false,
-        sku: "JC-BE-005"
+        sku: "JC-EB-005"
       },
       {
-        name: "Watermelon Refresh",
-        description: "Pure watermelon juice with a hint of mint and lime.",
-        price: 7.49,
-        imageUrl: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-        category: "Hydration",
+        name: "Tropical Wave",
+        description: "Pineapple, mango, passion fruit, and coconut water for hydration.",
+        price: 3300,
+        imageUrl: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
+        category: "Wellness",
         stock: 45,
         featured: false,
-        sku: "JC-WR-006"
+        sku: "JC-TW-006"
       }
     ];
     
