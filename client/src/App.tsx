@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
 import Subscribe from "@/pages/Subscribe";
+import Checkout from "@/pages/Checkout";
 import NotFound from "@/pages/not-found";
 
 // Admin Pages
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/shop" component={Shop} />
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/subscribe" component={Subscribe} />
+          <Route path="/checkout" component={Checkout} />
           
           {/* Admin Routes */}
           <Route path="/admin" component={AdminLogin} />

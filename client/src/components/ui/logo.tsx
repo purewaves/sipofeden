@@ -1,8 +1,18 @@
-const Logo = () => {
+import logoPng from "@assets/logo.jpg";
+
+const Logo = ({ size = "medium" }: { size?: "small" | "medium" | "large" }) => {
+  const sizeClasses = {
+    small: "h-8",
+    medium: "h-12",
+    large: "h-16",
+  };
+
   return (
-    <span className="text-accent font-brand">
-      <span className="text-primary">Sip</span> of Eden
-    </span>
+    <img 
+      src={logoPng} 
+      alt="Sip of Eden" 
+      className={`${sizeClasses[size]} rounded-full`} 
+    />
   );
 };
 

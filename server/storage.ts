@@ -154,7 +154,12 @@ export class MemStorage implements IStorage {
 
   async createJuice(juice: InsertJuice): Promise<Juice> {
     const id = this.juiceCurrentId++;
-    const newJuice: Juice = { ...juice, id };
+    const newJuice: Juice = { 
+      ...juice, 
+      id,
+      stock: juice.stock || 0,
+      featured: juice.featured || false 
+    };
     this.juices.set(id, newJuice);
     return newJuice;
   }
@@ -195,14 +200,21 @@ export class MemStorage implements IStorage {
     
     if (existingItem) {
       // Update quantity if item already exists
-      const updatedItem = await this.updateCartItem(existingItem.id, existingItem.quantity + item.quantity);
+      const updatedItem = await this.updateCartItem(
+        existingItem.id, 
+        existingItem.quantity + (item.quantity || 1)
+      );
       if (!updatedItem) throw new Error(`Failed to update cart item with id ${existingItem.id}`);
       return updatedItem;
     }
     
     // Create new cart item
     const id = this.cartItemCurrentId++;
-    const newItem: CartItem = { ...item, id };
+    const newItem: CartItem = { 
+      ...item, 
+      id, 
+      quantity: item.quantity || 1 
+    };
     this.cartItems.set(id, newItem);
     return newItem;
   }
@@ -257,7 +269,11 @@ export class MemStorage implements IStorage {
   async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
     // Create the order
     const id = this.orderCurrentId++;
-    const newOrder: Order = { ...order, id };
+    const newOrder: Order = { 
+      ...order, 
+      id,
+      status: order.status || "pending" 
+    };
     this.orders.set(id, newOrder);
     
     // Create the order items

@@ -13,11 +13,7 @@ const CartSidebar = () => {
   }, 0);
 
   const handleCheckout = () => {
-    toast({
-      title: "Checkout initiated",
-      description: "This is a demo feature. Your cart has been cleared.",
-    });
-    clearCart();
+    window.location.href = "/checkout";
     toggleCart();
   };
 
