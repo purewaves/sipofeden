@@ -147,7 +147,7 @@ const Subscribe = () => {
                                   <RadioGroupItem value="weekly" />
                                 </FormControl>
                                 <FormLabel className="font-normal">
-                                  <span className="font-medium">Weekly</span> - $35.99/week (Save 10%)
+                                  <span className="font-medium">Weekly</span> - ₦12,500/week (Save 10%)
                                 </FormLabel>
                               </FormItem>
                               <FormItem className="flex items-center space-x-3 space-y-0">
@@ -155,7 +155,7 @@ const Subscribe = () => {
                                   <RadioGroupItem value="biweekly" />
                                 </FormControl>
                                 <FormLabel className="font-normal">
-                                  <span className="font-medium">Bi-weekly</span> - $36.99/2 weeks (Save 8%)
+                                  <span className="font-medium">Bi-weekly</span> - ₦22,000/2 weeks (Save 8%)
                                 </FormLabel>
                               </FormItem>
                               <FormItem className="flex items-center space-x-3 space-y-0">
@@ -163,7 +163,7 @@ const Subscribe = () => {
                                   <RadioGroupItem value="monthly" />
                                 </FormControl>
                                 <FormLabel className="font-normal">
-                                  <span className="font-medium">Monthly</span> - $39.99/month (Save 5%)
+                                  <span className="font-medium">Monthly</span> - ₦42,000/month (Save 5%)
                                 </FormLabel>
                               </FormItem>
                             </RadioGroup>
