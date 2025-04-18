@@ -34,8 +34,6 @@ const Footer = () => {
             <h4 className="font-heading font-semibold mb-4">Shop</h4>
             <ul className="space-y-2">
               <li><Link href="/shop"><a className="text-gray-600 hover:text-primary transition-colors">All Juices</a></Link></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Best Sellers</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">New Arrivals</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Bundles</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Gift Cards</a></li>
             </ul>
@@ -44,8 +42,6 @@ const Footer = () => {
           <div>
             <h4 className="font-heading font-semibold mb-4">Help</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">FAQs</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Shipping</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Returns</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Track Order</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Contact Us</a></li>
@@ -56,9 +52,6 @@ const Footer = () => {
             <h4 className="font-heading font-semibold mb-4">About</h4>
             <ul className="space-y-2">
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Our Story</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Blog</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Press</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Careers</a></li>
               <li><Link href="/admin"><a className="text-gray-600 hover:text-primary transition-colors">Admin</a></Link></li>
             </ul>
           </div>

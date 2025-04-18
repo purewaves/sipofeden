@@ -36,9 +36,9 @@ const Newsletter = () => {
     <section className="py-12">
       <div className="container mx-auto px-4">
         <div className="bg-primary text-white p-8 rounded-lg card-shadow text-center">
-          <h2 className="font-heading text-3xl font-semibold mb-4">Join Our Juice Community</h2>
+          <h2 className="font-heading text-3xl font-semibold mb-4">Subscribe to Our Newsletter</h2>
           <p className="mb-6 max-w-2xl mx-auto">
-            Sign up for our newsletter to receive seasonal recipes, exclusive offers, and wellness tips.
+            Sign up to receive seasonal recipes, exclusive offers, and wellness tips.
           </p>
           
           <form onSubmit={handleSubmit} className="max-w-md mx-auto flex flex-col sm:flex-row gap-2">
