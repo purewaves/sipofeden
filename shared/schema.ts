@@ -110,6 +110,22 @@ export const insertAdminSchema = createInsertSchema(admins).omit({
   id: true
 });
 
+// We'll need to implement these after we run the migrations
+export const updateAdminProfileSchema = z.object({
+  email: z.string().email("Invalid email").optional(),
+  fullName: z.string().min(3, "Full name must be at least 3 characters").optional(),
+  phoneNumber: z.string().optional(),
+});
+
+export const updateAdminPasswordSchema = z.object({
+  currentPassword: z.string().min(6, "Current password is required"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm password is required")
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"]
+});
+
 // Schema types
 export type Juice = typeof juices.$inferSelect;
 export type InsertJuice = z.infer<typeof insertJuiceSchema>;
@@ -128,3 +144,5 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type UpdateAdminProfile = z.infer<typeof updateAdminProfileSchema>;
+export type UpdateAdminPassword = z.infer<typeof updateAdminPasswordSchema>;

@@ -35,6 +35,7 @@ export interface IStorage {
   
   // Admin operations
   getAdminByUsername(username: string): Promise<Admin | undefined>;
+  getAdminById(id: number): Promise<Admin | undefined>;
   createAdmin(admin: InsertAdmin): Promise<Admin>;
   
   // Order operations
@@ -204,6 +205,14 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
+  async getAdminById(id: number): Promise<Admin | undefined> {
+    const result = await db.select()
+      .from(admins)
+      .where(eq(admins.id, id));
+    
+    return result[0];
+  }
+  
   async createAdmin(admin: InsertAdmin): Promise<Admin> {
     const result = await db.insert(admins)
       .values(admin)
@@ -211,6 +220,8 @@ export class DatabaseStorage implements IStorage {
     
     return result[0];
   }
+  
+  // Additional admin profile methods will be implemented later
   
   // Order operations
   async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
