@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // Juice product
 export const juices = pgTable("juices", {
@@ -15,6 +16,11 @@ export const juices = pgTable("juices", {
   sku: text("sku").notNull().unique()
 });
 
+export const juicesRelations = relations(juices, ({ many }) => ({
+  cartItems: many(cartItems),
+  orderItems: many(orderItems)
+}));
+
 export const insertJuiceSchema = createInsertSchema(juices).omit({
   id: true
 });
@@ -26,6 +32,13 @@ export const cartItems = pgTable("cart_items", {
   sessionId: text("session_id").notNull(),
   quantity: integer("quantity").notNull().default(1)
 });
+
+export const cartItemsRelations = relations(cartItems, ({ one }) => ({
+  juice: one(juices, {
+    fields: [cartItems.juiceId],
+    references: [juices.id]
+  })
+}));
 
 export const insertCartItemSchema = createInsertSchema(cartItems).omit({
   id: true
@@ -54,6 +67,10 @@ export const orders = pgTable("orders", {
   createdAt: text("created_at").notNull() // Store as ISO string
 });
 
+export const ordersRelations = relations(orders, ({ many }) => ({
+  items: many(orderItems)
+}));
+
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true
 });
@@ -66,6 +83,17 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   price: doublePrecision("price").notNull()
 });
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id]
+  }),
+  juice: one(juices, {
+    fields: [orderItems.juiceId],
+    references: [juices.id]
+  })
+}));
 
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
   id: true

@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import AdminHeader from "@/components/admin/AdminHeader";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { Juice, Order } from "@shared/schema";
-import { formatCurrency, getStockStatus, getStockStatusClass } from "@/lib/utils";
-import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp } from "lucide-react";
+import { formatCurrency, getStockStatus, getStockStatusClass, formatDate } from "@/lib/utils";
+import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp, ArrowDown, Truck, Package, Leaf } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const AdminDashboard = () => {
   const [, navigate] = useLocation();
@@ -247,6 +249,161 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Analytics Charts Section */}
+          <div className="mt-8">
+            <h2 className="font-heading text-xl font-semibold mb-4">Analytics</h2>
+            
+            <Tabs defaultValue="sales" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="sales">Sales Trends</TabsTrigger>
+                <TabsTrigger value="products">Product Performance</TabsTrigger>
+                <TabsTrigger value="orders">Order Status</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="sales">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Monthly Sales</CardTitle>
+                    <CardDescription>Sales performance over the last 6 months</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={[
+                            { month: 'Jan', sales: 320000 },
+                            { month: 'Feb', sales: 450000 },
+                            { month: 'Mar', sales: 410000 },
+                            { month: 'Apr', sales: 480000 },
+                            { month: 'May', sales: 520000 },
+                            { month: 'Jun', sales: 610000 },
+                          ]}
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis 
+                            tickFormatter={(value) => `₦${value/1000}k`}
+                          />
+                          <Tooltip 
+                            formatter={(value) => [`₦${new Intl.NumberFormat('en-NG').format(value)}`, 'Sales']} 
+                            labelFormatter={(label) => `Month: ${label}`}
+                          />
+                          <Legend />
+                          <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="products">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Best Selling Juices</CardTitle>
+                      <CardDescription>Top juices by sales volume</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={[
+                              { name: 'Green Detox', sales: 240 },
+                              { name: 'Liquid Sunset', sales: 195 },
+                              { name: 'Tropical Wave', sales: 163 },
+                              { name: 'Immunity Shot', sales: 120 },
+                              { name: 'Zen Cleanse', sales: 87 },
+                            ]}
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="sales" name="Units Sold" fill="#82ca9d" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Sales by Category</CardTitle>
+                      <CardDescription>Distribution of sales by juice category</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { name: 'Detox', value: 420 },
+                                { name: 'Immunity', value: 380 },
+                                { name: 'Energy Booster', value: 210 },
+                                { name: 'Wellness', value: 190 },
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              <Cell fill="#0088FE" />
+                              <Cell fill="#00C49F" />
+                              <Cell fill="#FFBB28" />
+                              <Cell fill="#FF8042" />
+                            </Pie>
+                            <Tooltip formatter={(value, name) => [`${value} units`, name]} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="orders">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Order Status Distribution</CardTitle>
+                    <CardDescription>Current status of all orders</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Delivered', value: 63, fill: '#4ade80' },
+                              { name: 'Shipped', value: 18, fill: '#60a5fa' },
+                              { name: 'Processing', value: 12, fill: '#facc15' },
+                              { name: 'Pending', value: 7, fill: '#94a3b8' },
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            labelLine={true}
+                          />
+                          <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </section>
       </main>

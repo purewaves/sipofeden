@@ -1,11 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { seedDatabase } from "./initializeDb";
+import session from "express-session";
+import { storage } from "./storage";
 
+// Create Express app
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Session middleware
+app.use(session({
+  store: storage.sessionStore,
+  secret: process.env.SESSION_SECRET || 'sip-of-eden-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+  }
+}));
+
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -36,35 +53,59 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize the application
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    // Seed the database with initial data
+    await seedDatabase();
+    
+    // Register API routes
+    const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Setup development or production environment
+    if (process.env.NODE_ENV === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // Start the server
+    const port = Number(process.env.PORT || 5000);
+    server.listen(port, "0.0.0.0", () => {
+      log(`serving on port ${port}`);
+    });
+  } catch (error) {
+    console.error("Failed to initialize application:", error);
+    
+    // Provide more helpful error message but continue with application startup
+    if (error && typeof error === 'object' && 'code' in error && 'constraint' in error && 
+        error.code === '23505' && error.constraint === 'admins_username_unique') {
+      console.log("Admin user already exists. Continuing with application startup...");
+      
+      // Register API routes
+      const server = await registerRoutes(app);
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+      // Setup development or production environment
+      if (process.env.NODE_ENV === "development") {
+        await setupVite(app, server);
+      } else {
+        serveStatic(app);
+      }
+
+      // Start the server
+      const port = Number(process.env.PORT || 5000);
+      server.listen(port, "0.0.0.0", () => {
+        log(`serving on port ${port}`);
+      });
+    } else {
+      // For other errors, exit the process
+      process.exit(1);
+    }
   }
-
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();
+
+// Global error handling
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal server error" });
+});

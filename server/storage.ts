@@ -5,7 +5,13 @@ import {
   Admin, InsertAdmin,
   Order, InsertOrder,
   OrderItem, InsertOrderItem,
+  juices, cartItems, subscriptions, admins, orders, orderItems
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { pool } from "./db";
 
 export interface IStorage {
   // Juice operations
@@ -36,290 +42,242 @@ export interface IStorage {
   getOrders(): Promise<Order[]>;
   getOrderById(id: number): Promise<(Order & { items: (OrderItem & { juice: Juice })[] }) | undefined>;
   updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  
+  sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private juices: Map<number, Juice>;
-  private cartItems: Map<number, CartItem>;
-  private subscriptions: Map<number, Subscription>;
-  private admins: Map<number, Admin>;
-  private orders: Map<number, Order>;
-  private orderItems: Map<number, OrderItem>;
-  private juiceCurrentId: number;
-  private cartItemCurrentId: number;
-  private subscriptionCurrentId: number;
-  private adminCurrentId: number;
-  private orderCurrentId: number;
-  private orderItemCurrentId: number;
+const PostgresSessionStore = connectPg(session);
 
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
   constructor() {
-    this.juices = new Map();
-    this.cartItems = new Map();
-    this.subscriptions = new Map();
-    this.admins = new Map();
-    this.orders = new Map();
-    this.orderItems = new Map();
-    this.juiceCurrentId = 1;
-    this.cartItemCurrentId = 1;
-    this.subscriptionCurrentId = 1;
-    this.adminCurrentId = 1;
-    this.orderCurrentId = 1;
-    this.orderItemCurrentId = 1;
-    
-    // Add default admin
-    this.createAdmin({
-      username: "admin",
-      password: "adminpass" // In a real app, this would be hashed
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
     });
     
-    // Add sample juices
-    const sampleJuices: InsertJuice[] = [
-      {
-        name: "Liquid Sunset",
-        description: "Carrot, turmeric, pineapple, and ginger blend for immunity boosting.",
-        price: 3500,
-        imageUrl: "/assets/fae075af-fc0e-481c-8512-a972f44425b6-removebg-preview.png",
-        category: "Immunity",
-        stock: 85,
-        featured: true,
-        sku: "JC-LS-001"
-      },
-      {
-        name: "Green Guardian",
-        description: "Kale, cucumber, green apple, mint, and a hint of lemon for detoxification.",
-        price: 3200,
-        imageUrl: "/assets/10f5e9d3-8a86-4858-8ad1-5859e7e98e89-removebg-preview.png",
-        category: "Detox",
-        stock: 62,
-        featured: true,
-        sku: "JC-GG-002"
-      },
-      {
-        name: "Berry Bliss",
-        description: "Strawberry, blueberry, raspberry, and apple juice blend rich in antioxidants.",
-        price: 3500,
-        imageUrl: "/assets/8e75a215-9279-4c1f-8c70-c51150da25a5-removebg-preview.png",
-        category: "Antioxidant",
-        stock: 74,
-        featured: true,
-        sku: "JC-BB-003"
-      },
-      {
-        name: "Zesty Citrus",
-        description: "Orange, lemon, and grapefruit with a hint of ginger for immune support.",
-        price: 3000,
-        imageUrl: "/assets/ac4187c6-a203-4f78-852d-d28399fba46d-removebg-preview.png",
-        category: "Immunity",
-        stock: 92,
-        featured: false,
-        sku: "JC-ZC-004"
-      },
-      {
-        name: "Energy Boost",
-        description: "Beetroot, apple, ginger, and lemon for natural energy enhancement.",
-        price: 3700,
-        imageUrl: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
-        category: "Energy",
-        stock: 0,
-        featured: false,
-        sku: "JC-EB-005"
-      },
-      {
-        name: "Tropical Wave",
-        description: "Pineapple, mango, passion fruit, and coconut water for hydration.",
-        price: 3300,
-        imageUrl: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
-        category: "Wellness",
-        stock: 45,
-        featured: false,
-        sku: "JC-TW-006"
-      }
-    ];
-    
-    sampleJuices.forEach(juice => this.createJuice(juice));
+    // Check if admin exists, if not create default admin
+    this.initializeAdmin();
   }
-
+  
+  private async initializeAdmin() {
+    const adminExists = await db.select().from(admins).where(eq(admins.username, 'admin'));
+    
+    if (adminExists.length === 0) {
+      await this.createAdmin({
+        username: "admin",
+        password: "adminpass" // In a real app, this would be hashed
+      });
+    }
+  }
+  
   // Juice operations
   async getAllJuices(): Promise<Juice[]> {
-    return Array.from(this.juices.values());
+    return db.select().from(juices);
   }
-
+  
   async getFeaturedJuices(): Promise<Juice[]> {
-    return Array.from(this.juices.values()).filter(juice => juice.featured);
+    return db.select().from(juices).where(eq(juices.featured, true));
   }
-
+  
   async getJuiceById(id: number): Promise<Juice | undefined> {
-    return this.juices.get(id);
+    const result = await db.select().from(juices).where(eq(juices.id, id));
+    return result[0];
   }
-
+  
   async createJuice(juice: InsertJuice): Promise<Juice> {
-    const id = this.juiceCurrentId++;
-    const newJuice: Juice = { 
-      ...juice, 
-      id,
-      stock: juice.stock || 0,
-      featured: juice.featured || false 
-    };
-    this.juices.set(id, newJuice);
-    return newJuice;
+    const result = await db.insert(juices).values(juice).returning();
+    return result[0];
   }
-
+  
   async updateJuice(id: number, juiceUpdate: Partial<InsertJuice>): Promise<Juice | undefined> {
-    const existingJuice = this.juices.get(id);
-    if (!existingJuice) return undefined;
+    const result = await db.update(juices)
+      .set(juiceUpdate)
+      .where(eq(juices.id, id))
+      .returning();
     
-    const updatedJuice = { ...existingJuice, ...juiceUpdate };
-    this.juices.set(id, updatedJuice);
-    return updatedJuice;
+    return result[0];
   }
-
+  
   async deleteJuice(id: number): Promise<boolean> {
-    return this.juices.delete(id);
+    const result = await db.delete(juices).where(eq(juices.id, id)).returning();
+    return result.length > 0;
   }
-
+  
   // Cart operations
   async getCartItems(sessionId: string): Promise<(CartItem & { juice: Juice })[]> {
-    const items = Array.from(this.cartItems.values()).filter(item => item.sessionId === sessionId);
+    const items = await db.select({
+      cart: cartItems,
+      juice: juices
+    })
+    .from(cartItems)
+    .leftJoin(juices, eq(cartItems.juiceId, juices.id))
+    .where(eq(cartItems.sessionId, sessionId));
     
-    return items.map(item => {
-      const juice = this.juices.get(item.juiceId);
-      if (!juice) throw new Error(`Juice with id ${item.juiceId} not found`);
-      return { ...item, juice };
-    });
+    return items.map(item => ({
+      ...item.cart,
+      juice: item.juice
+    }));
   }
-
+  
   async addToCart(item: InsertCartItem): Promise<CartItem> {
     // Check if the juice exists
-    const juice = this.juices.get(item.juiceId);
+    const juice = await this.getJuiceById(item.juiceId);
     if (!juice) throw new Error(`Juice with id ${item.juiceId} not found`);
     
     // Check if the item is already in the cart
-    const existingItem = Array.from(this.cartItems.values()).find(
-      cartItem => cartItem.juiceId === item.juiceId && cartItem.sessionId === item.sessionId
-    );
+    const existingItem = await db.select()
+      .from(cartItems)
+      .where(
+        and(
+          eq(cartItems.juiceId, item.juiceId),
+          eq(cartItems.sessionId, item.sessionId)
+        )
+      );
     
-    if (existingItem) {
+    if (existingItem.length > 0) {
       // Update quantity if item already exists
       const updatedItem = await this.updateCartItem(
-        existingItem.id, 
-        existingItem.quantity + (item.quantity || 1)
+        existingItem[0].id, 
+        existingItem[0].quantity + (item.quantity || 1)
       );
-      if (!updatedItem) throw new Error(`Failed to update cart item with id ${existingItem.id}`);
+      if (!updatedItem) throw new Error(`Failed to update cart item with id ${existingItem[0].id}`);
       return updatedItem;
     }
     
     // Create new cart item
-    const id = this.cartItemCurrentId++;
-    const newItem: CartItem = { 
-      ...item, 
-      id, 
-      quantity: item.quantity || 1 
-    };
-    this.cartItems.set(id, newItem);
-    return newItem;
+    const newItem = await db.insert(cartItems)
+      .values({
+        ...item,
+        quantity: item.quantity || 1
+      })
+      .returning();
+    
+    return newItem[0];
   }
-
+  
   async updateCartItem(id: number, quantity: number): Promise<CartItem | undefined> {
-    const existingItem = this.cartItems.get(id);
-    if (!existingItem) return undefined;
+    const result = await db.update(cartItems)
+      .set({ quantity })
+      .where(eq(cartItems.id, id))
+      .returning();
     
-    const updatedItem = { ...existingItem, quantity };
-    this.cartItems.set(id, updatedItem);
-    return updatedItem;
+    return result[0];
   }
-
+  
   async removeFromCart(id: number): Promise<boolean> {
-    return this.cartItems.delete(id);
-  }
-
-  async clearCart(sessionId: string): Promise<boolean> {
-    const itemsToDelete = Array.from(this.cartItems.values())
-      .filter(item => item.sessionId === sessionId)
-      .map(item => item.id);
+    const result = await db.delete(cartItems)
+      .where(eq(cartItems.id, id))
+      .returning();
     
-    itemsToDelete.forEach(id => this.cartItems.delete(id));
-    return true;
+    return result.length > 0;
   }
-
+  
+  async clearCart(sessionId: string): Promise<boolean> {
+    const result = await db.delete(cartItems)
+      .where(eq(cartItems.sessionId, sessionId))
+      .returning();
+    
+    return result.length > 0;
+  }
+  
   // Subscription operations
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
-    const id = this.subscriptionCurrentId++;
-    const newSubscription: Subscription = { ...subscription, id };
-    this.subscriptions.set(id, newSubscription);
-    return newSubscription;
+    const result = await db.insert(subscriptions)
+      .values(subscription)
+      .returning();
+    
+    return result[0];
   }
-
+  
   async getSubscriptions(): Promise<Subscription[]> {
-    return Array.from(this.subscriptions.values());
+    return db.select().from(subscriptions);
   }
-
+  
   // Admin operations
   async getAdminByUsername(username: string): Promise<Admin | undefined> {
-    return Array.from(this.admins.values()).find(admin => admin.username === username);
+    const result = await db.select()
+      .from(admins)
+      .where(eq(admins.username, username));
+    
+    return result[0];
   }
-
+  
   async createAdmin(admin: InsertAdmin): Promise<Admin> {
-    const id = this.adminCurrentId++;
-    const newAdmin: Admin = { ...admin, id };
-    this.admins.set(id, newAdmin);
-    return newAdmin;
+    const result = await db.insert(admins)
+      .values(admin)
+      .returning();
+    
+    return result[0];
   }
-
+  
   // Order operations
   async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
     // Create the order
-    const id = this.orderCurrentId++;
-    const newOrder: Order = { 
-      ...order, 
-      id,
-      status: order.status || "pending" 
-    };
-    this.orders.set(id, newOrder);
+    const [newOrder] = await db.insert(orders)
+      .values({
+        ...order,
+        status: order.status || "pending"
+      })
+      .returning();
     
-    // Create the order items
-    items.forEach(item => {
-      const itemId = this.orderItemCurrentId++;
-      const newItem: OrderItem = { ...item, id: itemId, orderId: id };
-      this.orderItems.set(itemId, newItem);
+    // Create the order items and update juice stock
+    for (const item of items) {
+      await db.insert(orderItems)
+        .values({
+          ...item,
+          orderId: newOrder.id
+        })
+        .returning();
       
       // Update the juice stock
-      const juice = this.juices.get(item.juiceId);
+      const juice = await this.getJuiceById(item.juiceId);
       if (juice) {
-        juice.stock = Math.max(0, juice.stock - item.quantity);
-        this.juices.set(juice.id, juice);
+        await db.update(juices)
+          .set({ stock: Math.max(0, juice.stock - item.quantity) })
+          .where(eq(juices.id, juice.id));
       }
-    });
+    }
     
     return newOrder;
   }
-
+  
   async getOrders(): Promise<Order[]> {
-    return Array.from(this.orders.values());
+    return db.select().from(orders);
   }
-
+  
   async getOrderById(id: number): Promise<(Order & { items: (OrderItem & { juice: Juice })[] }) | undefined> {
-    const order = this.orders.get(id);
-    if (!order) return undefined;
+    const orderData = await db.select().from(orders).where(eq(orders.id, id));
+    if (orderData.length === 0) return undefined;
     
-    const orderItems = Array.from(this.orderItems.values())
-      .filter(item => item.orderId === id)
-      .map(item => {
-        const juice = this.juices.get(item.juiceId);
-        if (!juice) throw new Error(`Juice with id ${item.juiceId} not found`);
-        return { ...item, juice };
-      });
+    const order = orderData[0];
     
-    return { ...order, items: orderItems };
+    const itemsData = await db.select({
+      orderItem: orderItems,
+      juice: juices
+    })
+    .from(orderItems)
+    .leftJoin(juices, eq(orderItems.juiceId, juices.id))
+    .where(eq(orderItems.orderId, id));
+    
+    const items = itemsData.map(item => ({
+      ...item.orderItem,
+      juice: item.juice
+    }));
+    
+    return { ...order, items };
   }
-
+  
   async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
-    const order = this.orders.get(id);
-    if (!order) return undefined;
+    const result = await db.update(orders)
+      .set({ status })
+      .where(eq(orders.id, id))
+      .returning();
     
-    const updatedOrder = { ...order, status };
-    this.orders.set(id, updatedOrder);
-    return updatedOrder;
+    return result[0];
   }
 }
 
-export const storage = new MemStorage();
+// Instantiate and export the database storage
+export const storage = new DatabaseStorage();

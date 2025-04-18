@@ -79,7 +79,7 @@ export async function seedDatabase() {
           description: "Beetroot, apple, ginger, and lemon for natural energy enhancement.",
           price: 3700,
           imageUrl: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
-          category: "Energy",
+          category: "Energy Booster",
           stock: 0,
           featured: false,
           sku: "JC-EB-005"
