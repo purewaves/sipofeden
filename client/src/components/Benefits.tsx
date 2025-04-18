@@ -33,8 +33,8 @@ const Benefits = () => {
               <div className="text-primary text-3xl mb-4 flex justify-center">
                 <Truck className="h-10 w-10" />
               </div>
-              <h3 className="font-heading font-semibold text-xl mb-3">Free Delivery</h3>
-              <p className="text-gray-600">Enjoy free delivery on all subscription plans and orders over $30.</p>
+              <h3 className="font-heading font-semibold text-xl mb-3">Fast & Reliable Delivery</h3>
+              <p className="text-gray-600">Quick delivery across Nigeria with special priority for subscription orders.</p>
             </CardContent>
           </Card>
         </div>
