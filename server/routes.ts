@@ -2,10 +2,65 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { insertJuiceSchema, insertCartItemSchema, insertSubscriptionSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up storage for file uploads
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  
+  // Create uploads directory if it doesn't exist
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  
+  // Configure multer for file uploads
+  const uploadStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, 'product-' + uniqueSuffix + ext);
+    }
+  });
+  
+  const upload = multer({ 
+    storage: uploadStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+      // Only accept images
+      if (!file.mimetype.startsWith('image/')) {
+        return cb(new Error('Only image files are allowed'));
+      }
+      cb(null, true);
+    }
+  });
+  
   // API Routes
+  
+  // File upload route
+  app.post('/api/admin/upload', upload.single('image'), (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      // Return the URL for the uploaded file
+      const imageUrl = `/uploads/${req.file.filename}`;
+      
+      res.json({
+        message: 'File uploaded successfully',
+        imageUrl
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ message: 'Failed to upload file' });
+    }
+  });
   
   // Juice routes
   app.get("/api/juices", async (req: Request, res: Response) => {
