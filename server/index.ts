@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./initializeDb";
+import { runMigrations } from "./migrations";
 import session from "express-session";
 import { storage } from "./storage";
 
@@ -59,6 +60,9 @@ app.use((req, res, next) => {
 // Initialize the application
 (async () => {
   try {
+    // Run database migrations
+    await runMigrations();
+    
     // Seed the database with initial data
     await seedDatabase();
     

@@ -2,7 +2,7 @@ import {
   Juice, InsertJuice, 
   CartItem, InsertCartItem, 
   Subscription, InsertSubscription, 
-  Admin, InsertAdmin,
+  Admin, InsertAdmin, UpdateAdminProfile,
   Order, InsertOrder,
   OrderItem, InsertOrderItem,
   juices, cartItems, subscriptions, admins, orders, orderItems
@@ -37,6 +37,9 @@ export interface IStorage {
   getAdminByUsername(username: string): Promise<Admin | undefined>;
   getAdminById(id: number): Promise<Admin | undefined>;
   createAdmin(admin: InsertAdmin): Promise<Admin>;
+  updateAdminProfile(id: number, profileData: UpdateAdminProfile): Promise<Admin | undefined>;
+  updateAdminPassword(id: number, currentPassword: string, newPassword: string): Promise<boolean>;
+  updateAdminLoginStatus(id: number, isFirstLogin: boolean): Promise<boolean>;
   
   // Order operations
   createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
@@ -221,7 +224,45 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  // Additional admin profile methods will be implemented later
+  async updateAdminProfile(id: number, profileData: UpdateAdminProfile): Promise<Admin | undefined> {
+    const result = await db.update(admins)
+      .set(profileData)
+      .where(eq(admins.id, id))
+      .returning();
+    
+    return result[0];
+  }
+  
+  async updateAdminPassword(id: number, currentPassword: string, newPassword: string): Promise<boolean> {
+    // Get the admin
+    const admin = await this.getAdminById(id);
+    if (!admin) return false;
+    
+    // Check if current password matches
+    if (admin.password !== currentPassword) return false; // In a real app, use bcrypt to compare
+    
+    // Update password
+    const result = await db.update(admins)
+      .set({ password: newPassword }) // In a real app, hash the password
+      .where(eq(admins.id, id))
+      .returning();
+    
+    return result.length > 0;
+  }
+  
+  async updateAdminLoginStatus(id: number, isFirstLogin: boolean): Promise<boolean> {
+    const now = new Date().toISOString();
+    
+    const result = await db.update(admins)
+      .set({ 
+        isFirstLogin: isFirstLogin,
+        lastLogin: now
+      })
+      .where(eq(admins.id, id))
+      .returning();
+    
+    return result.length > 0;
+  }
   
   // Order operations
   async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {

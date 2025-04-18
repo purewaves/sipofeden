@@ -104,17 +104,23 @@ export const admins = pgTable("admins", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").default(""),
+  fullName: text("full_name").default(""),
+  phoneNumber: text("phone_number").default(""),
+  isFirstLogin: boolean("is_first_login").default(true),
+  lastLogin: text("last_login").default(""),
 });
 
 export const insertAdminSchema = createInsertSchema(admins).omit({
   id: true
 });
 
-// We'll need to implement these after we run the migrations
-export const updateAdminProfileSchema = z.object({
-  email: z.string().email("Invalid email").optional(),
-  fullName: z.string().min(3, "Full name must be at least 3 characters").optional(),
-  phoneNumber: z.string().optional(),
+export const updateAdminProfileSchema = createInsertSchema(admins).omit({
+  id: true,
+  username: true,
+  password: true,
+  isFirstLogin: true,
+  lastLogin: true
 });
 
 export const updateAdminPasswordSchema = z.object({
