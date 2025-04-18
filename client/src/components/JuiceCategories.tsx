@@ -17,13 +17,6 @@ const categories = [
     description: 'Explore our full range of cold-pressed juices'
   },
   { 
-    id: 'immunity', 
-    name: 'Immunity', 
-    icon: ShieldCheck, 
-    color: 'bg-yellow-100 text-yellow-700',
-    description: 'Boost your immune system with vitamin-rich juices' 
-  },
-  { 
     id: 'detox', 
     name: 'Detox', 
     icon: Droplets, 
@@ -31,11 +24,32 @@ const categories = [
     description: 'Cleanse and refresh with our detoxifying blends'
   },
   { 
+    id: 'antioxidant', 
+    name: 'Antioxidant', 
+    icon: ShieldCheck, 
+    color: 'bg-purple-100 text-purple-700',
+    description: 'Fight free radicals with our antioxidant-rich juices' 
+  },
+  { 
+    id: 'immune boost', 
+    name: 'Immune Boost', 
+    icon: ShieldCheck, 
+    color: 'bg-yellow-100 text-yellow-700',
+    description: 'Boost your immune system with vitamin-rich juices' 
+  },
+  { 
     id: 'energy', 
     name: 'Energy', 
     icon: Zap, 
     color: 'bg-orange-100 text-orange-700',
     description: 'Revitalize and power up with natural energy boosters'
+  },
+  { 
+    id: 'hydration', 
+    name: 'Hydration', 
+    icon: Droplets, 
+    color: 'bg-blue-100 text-blue-700',
+    description: 'Stay hydrated with our refreshing hydration blends'
   },
   { 
     id: 'wellness', 
