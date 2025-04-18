@@ -67,10 +67,26 @@ const JuiceCategories = () => {
     queryKey: ['/api/juices'],
   });
 
+  // Map frontend categories to possible database category values
+  const categoryMappings: Record<string, string[]> = {
+    'all': ['all'],
+    'detox': ['detox'],
+    'antioxidant': ['antioxidant'],
+    'immune boost': ['immune boost', 'immunity', 'immune'],
+    'energy': ['energy', 'energy booster'],
+    'hydration': ['hydration'],
+    'wellness': ['wellness']
+  };
+  
   // Filter juices by category
   const filteredJuices = activeCategory === 'all' 
     ? juices 
-    : juices.filter(juice => juice.category.toLowerCase() === activeCategory.toLowerCase());
+    : juices.filter(juice => {
+      const possibleCategories = categoryMappings[activeCategory] || [];
+      return possibleCategories.some(cat => 
+        juice.category.toLowerCase().includes(cat.toLowerCase())
+      );
+    });
 
   const CategoryIcon = categories.find(cat => cat.id === activeCategory)?.icon || Leaf;
   const categoryDescription = categories.find(cat => cat.id === activeCategory)?.description || '';
