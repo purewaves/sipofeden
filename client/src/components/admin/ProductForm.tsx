@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,14 +12,14 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Juice } from "@shared/schema";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, Image } from "lucide-react";
 
 // Create a product schema based on the insertJuiceSchema
 const productSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   description: z.string().min(10, { message: "Description must be at least 10 characters" }),
   price: z.coerce.number().positive({ message: "Price must be a positive number" }),
-  imageUrl: z.string().url({ message: "Please enter a valid image URL" }),
+  imageUrl: z.string().min(1, { message: "Image is required" }),
   category: z.string().min(1, { message: "Category is required" }),
   stock: z.coerce.number().int().nonnegative({ message: "Stock must be a non-negative integer" }),
   featured: z.boolean().default(false),
@@ -38,6 +38,9 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [category, setCategory] = useState(initialData?.category || "");
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(initialData?.imageUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -96,6 +99,84 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       });
     },
   });
+
+  // Handle image upload
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Update the form with the new image URL
+      form.setValue('imageUrl', data.imageUrl);
+      setPreviewImage(data.imageUrl);
+      setIsUploading(false);
+      
+      toast({
+        title: "Image uploaded",
+        description: "The image has been uploaded successfully",
+      });
+    },
+    onError: () => {
+      setIsUploading(false);
+      toast({
+        title: "Error",
+        description: "Failed to upload image",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image size should be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Show preview of the image
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload the image
+    setIsUploading(true);
+    uploadImageMutation.mutate(file);
+  };
+  
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   const onSubmit = (data: ProductFormValues) => {
     if (isEditing) {
@@ -250,13 +331,63 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
             name="imageUrl"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Image URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://example.com/image.jpg" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Enter a URL for the product image
-                </FormDescription>
+                <FormLabel>Product Image</FormLabel>
+                <div className="space-y-4">
+                  <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 h-64 bg-gray-50 flex items-center justify-center">
+                    {previewImage ? (
+                      <img 
+                        src={previewImage} 
+                        alt="Product Preview" 
+                        className="h-full w-full object-contain p-2"
+                      />
+                    ) : (
+                      <div className="text-center p-4 text-gray-500">
+                        <Image className="mx-auto h-12 w-12 mb-2 opacity-70" />
+                        <p className="text-sm">No image uploaded</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={triggerFileInput}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Image
+                        </>
+                      )}
+                    </Button>
+                    <FormControl>
+                      <Input 
+                        placeholder="Or enter image URL" 
+                        className="flex-1" 
+                        {...field} 
+                      />
+                    </FormControl>
+                  </div>
+                  
+                  <FormDescription>
+                    Upload an image or provide a URL for the product image
+                  </FormDescription>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
