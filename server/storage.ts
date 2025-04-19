@@ -100,6 +100,9 @@ export class DatabaseStorage implements IStorage {
     
     // Check if admin exists, if not create default admin
     this.initializeAdmin();
+    
+    // Create default website settings if needed
+    this.createDefaultWebsiteSettingsIfNeeded();
   }
   
   private async initializeAdmin() {
@@ -503,6 +506,39 @@ export class DatabaseStorage implements IStorage {
     return 'bronze';
   }
   
+  // Website Settings operations
+  async getWebsiteSettings(): Promise<WebsiteSettings> {
+    const result = await db.select().from(websiteSettings);
+    
+    if (result.length === 0) {
+      return this.createDefaultWebsiteSettings();
+    }
+    
+    return result[0];
+  }
+  
+  async updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings> {
+    const currentSettings = await this.getWebsiteSettings();
+    
+    const result = await db.update(websiteSettings)
+      .set({
+        ...settings,
+        updatedAt: new Date()
+      })
+      .where(eq(websiteSettings.id, currentSettings.id))
+      .returning();
+    
+    return result[0];
+  }
+  
+  private async createDefaultWebsiteSettingsIfNeeded(): Promise<void> {
+    const settings = await db.select().from(websiteSettings);
+    
+    if (settings.length === 0) {
+      await this.createDefaultWebsiteSettings();
+    }
+  }
+  
   async getLoyaltyCustomerRewards(customerId: number): Promise<LoyaltyReward[]> {
     return db.select()
       .from(loyaltyRewards)
@@ -584,34 +620,6 @@ export class DatabaseStorage implements IStorage {
         benefits: ['Earn 3 points per ₦100 spent', 'Birthday reward', '20% off on subscription plans', 'Free delivery', 'Priority support']
       }
     ];
-  }
-
-  // Website Settings operations
-  async getWebsiteSettings(): Promise<WebsiteSettings> {
-    // Check if settings exist
-    const settings = await db.select().from(websiteSettings);
-    
-    // If no settings exist, create default settings
-    if (settings.length === 0) {
-      return this.createDefaultWebsiteSettings();
-    }
-    
-    return settings[0];
-  }
-
-  async updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings> {
-    const existingSettings = await this.getWebsiteSettings();
-    
-    // Update the settings
-    const result = await db.update(websiteSettings)
-      .set({
-        ...settings,
-        updatedAt: new Date()
-      })
-      .where(eq(websiteSettings.id, existingSettings.id))
-      .returning();
-    
-    return result[0];
   }
 
   private async createDefaultWebsiteSettings(): Promise<WebsiteSettings> {
