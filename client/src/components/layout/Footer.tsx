@@ -12,7 +12,7 @@ const Footer = () => {
               <Logo />
             </h3>
             <p className="text-gray-600 mb-4">
-              Bringing nature's goodness to your doorstep since 2023.
+              Bringing nature's goodness to your doorstep, for now.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-600 hover:text-primary transition-colors">
