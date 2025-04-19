@@ -51,7 +51,7 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       imageUrl: initialData?.imageUrl || "",
       category: initialData?.category || "",
       stock: initialData?.stock || 0,
-      featured: initialData?.featured || false,
+      featured: initialData?.featured === true ? true : false, // Ensure it's always a boolean
       sku: initialData?.sku || "",
     },
   });
@@ -125,7 +125,8 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       if (isEditing && initialData) {
         const updatedData = {
           ...initialData,
-          imageUrl: data.imageUrl
+          imageUrl: data.imageUrl,
+          featured: initialData.featured || false  // Ensure featured is always boolean
         };
         updateProductMutation.mutate(updatedData);
       }

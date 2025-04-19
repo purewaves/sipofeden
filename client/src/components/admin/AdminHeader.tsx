@@ -33,34 +33,24 @@ const AdminHeader = () => {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/admin/dashboard">
-              <a className="text-2xl font-brand font-bold">
+            <Link href="/admin/dashboard" className="text-2xl font-brand font-bold">
                 <Logo /> Admin
-              </a>
             </Link>
           </div>
           
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex space-x-6">
-            <Link href="/admin/dashboard">
-              <a className={`font-medium ${isActive("/admin/dashboard") ? "text-primary" : "hover:text-primary"} transition-colors`}>
-                Dashboard
-              </a>
+            <Link href="/admin/dashboard" className={`font-medium ${isActive("/admin/dashboard") ? "text-primary" : "hover:text-primary"} transition-colors`}>
+              Dashboard
             </Link>
-            <Link href="/admin/products">
-              <a className={`font-medium ${isActive("/admin/products") ? "text-primary" : "hover:text-primary"} transition-colors`}>
-                Products
-              </a>
+            <Link href="/admin/products" className={`font-medium ${isActive("/admin/products") ? "text-primary" : "hover:text-primary"} transition-colors`}>
+              Products
             </Link>
-            <Link href="/admin/orders">
-              <a className={`font-medium ${isActive("/admin/orders") ? "text-primary" : "hover:text-primary"} transition-colors`}>
-                Orders
-              </a>
+            <Link href="/admin/orders" className={`font-medium ${isActive("/admin/orders") ? "text-primary" : "hover:text-primary"} transition-colors`}>
+              Orders
             </Link>
-            <Link href="/admin/subscriptions">
-              <a className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : "hover:text-primary"} transition-colors`}>
-                Subscriptions
-              </a>
+            <Link href="/admin/subscriptions" className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : "hover:text-primary"} transition-colors`}>
+              Subscriptions
             </Link>
           </nav>
           
@@ -120,55 +110,50 @@ const AdminHeader = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4">
             <nav className="flex flex-col space-y-3">
-              <Link href="/admin/dashboard">
-                <a 
-                  className={`font-medium ${isActive("/admin/dashboard") ? "text-primary" : ""} hover:text-primary transition-colors`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Dashboard
-                </a>
+              <Link 
+                href="/admin/dashboard"
+                className={`font-medium ${isActive("/admin/dashboard") ? "text-primary" : ""} hover:text-primary transition-colors`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Dashboard
               </Link>
-              <Link href="/admin/products">
-                <a 
-                  className={`font-medium ${isActive("/admin/products") ? "text-primary" : ""} hover:text-primary transition-colors`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Products
-                </a>
+              <Link 
+                href="/admin/products"
+                className={`font-medium ${isActive("/admin/products") ? "text-primary" : ""} hover:text-primary transition-colors`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Products
               </Link>
-              <Link href="/admin/orders">
-                <a 
-                  className={`font-medium ${isActive("/admin/orders") ? "text-primary" : ""} hover:text-primary transition-colors`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Orders
-                </a>
+              <Link 
+                href="/admin/orders"
+                className={`font-medium ${isActive("/admin/orders") ? "text-primary" : ""} hover:text-primary transition-colors`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Orders
               </Link>
-              <Link href="/admin/subscriptions">
-                <a 
-                  className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : ""} hover:text-primary transition-colors`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Subscriptions
-                </a>
+              <Link 
+                href="/admin/subscriptions"
+                className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : ""} hover:text-primary transition-colors`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Subscriptions
               </Link>
-              <Link href="/">
-                <a 
-                  className="font-medium hover:text-primary transition-colors" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Customer View
-                </a>
+              <Link 
+                href="/"
+                className="font-medium hover:text-primary transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Customer View
               </Link>
-              <a 
-                className="font-medium hover:text-primary transition-colors cursor-pointer" 
+              <button 
+                className="font-medium hover:text-primary transition-colors cursor-pointer text-left"
                 onClick={() => {
                   handleLogout();
                   setIsMobileMenuOpen(false);
                 }}
               >
                 Log Out
-              </a>
+              </button>
             </nav>
           </div>
         )}
