@@ -42,11 +42,15 @@ const AdminLogin = () => {
     },
     onSuccess: (data) => {
       login(data.admin);
-      navigate("/admin/dashboard");
       toast({
         title: "Login successful",
         description: "Welcome to the admin dashboard",
       });
+      
+      // Use setTimeout to ensure the state updates before navigation
+      setTimeout(() => {
+        navigate("/admin/dashboard");
+      }, 50);
     },
     onError: () => {
       setError("Invalid username or password");

@@ -218,13 +218,13 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
   ];
 
   return (
-    <div className="p-2">
+    <div className="relative p-2 h-full">
       <h2 className="text-2xl font-bold mb-6">
         {isEditing ? "Edit Product" : "Add New Product"}
       </h2>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto pb-28 max-h-[calc(80vh-130px)]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
@@ -433,35 +433,36 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
               </FormItem>
             )}
           />
-
-          <div className="mt-8 pt-4 pb-4 flex flex-col sm:flex-row-reverse gap-3 sm:gap-4">
-            <Button 
-              type="submit" 
-              disabled={isPending} 
-              className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
-              size="lg"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  {isEditing ? "Updating..." : "Creating..."}
-                </>
-              ) : (
-                isEditing ? "Update Product" : "Create Product"
-              )}
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose}
-              className="border-gray-300 text-gray-700 w-full sm:w-auto text-base py-5 h-auto font-medium"
-              size="lg"
-            >
-              Cancel
-            </Button>
-          </div>
         </form>
       </Form>
+      
+      <div className="absolute bottom-0 left-0 right-0 bg-white p-4 border-t flex flex-col sm:flex-row-reverse gap-3 sm:gap-4 shadow-lg">
+        <Button 
+          type="submit"
+          form="product-form"
+          disabled={isPending} 
+          className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
+          size="lg"
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              {isEditing ? "Updating..." : "Creating..."}
+            </>
+          ) : (
+            isEditing ? "Update Product" : "Create Product"
+          )}
+        </Button>
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onClose}
+          className="border-gray-300 text-gray-700 w-full sm:w-auto text-base py-5 h-auto font-medium"
+          size="lg"
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 };
