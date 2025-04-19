@@ -1,13 +1,30 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertJuiceSchema, insertCartItemSchema, insertSubscriptionSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
+import { 
+  insertJuiceSchema, 
+  insertCartItemSchema, 
+  insertSubscriptionSchema, 
+  insertOrderSchema, 
+  insertOrderItemSchema,
+  updateAdminProfileSchema,
+  updateAdminPasswordSchema
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Middleware to check if admin is authenticated
+  const isAdminAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+    if (req.session.adminId) {
+      next();
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
+    }
+  };
+  
   // Set up storage for file uploads
   const uploadDir = path.join(process.cwd(), 'public', 'uploads');
   
@@ -43,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes
   
   // File upload route
-  app.post('/api/admin/upload', upload.single('image'), (req: Request, res: Response) => {
+  app.post('/api/admin/upload', isAdminAuthenticated, upload.single('image'), (req: Request, res: Response) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -100,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes - Juice management
-  app.post("/api/admin/juices", async (req: Request, res: Response) => {
+  app.post("/api/admin/juices", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const validatedData = insertJuiceSchema.parse(req.body);
       const newJuice = await storage.createJuice(validatedData);
@@ -113,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/juices/:id", async (req: Request, res: Response) => {
+  app.put("/api/admin/juices/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -137,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/juices/:id", async (req: Request, res: Response) => {
+  app.delete("/api/admin/juices/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -244,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/subscriptions", async (req: Request, res: Response) => {
+  app.get("/api/admin/subscriptions", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const subscriptions = await storage.getSubscriptions();
       res.json(subscriptions);
@@ -268,13 +285,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // In a real app, you would generate a JWT token here
+      // Set up admin session
+      req.session.adminId = admin.id;
+      
+      // Update last login time
+      await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin);
+      
+      // Don't return the password
+      const { password: _, ...adminWithoutPassword } = admin;
+      
       res.json({ 
         message: "Login successful",
-        admin: { id: admin.id, username: admin.username }
+        admin: adminWithoutPassword
       });
     } catch (error) {
+      console.error("Admin login error:", error);
       res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  
+  // Admin profile routes
+  app.get("/api/admin/profile", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const adminId = req.session.adminId as number;
+      const admin = await storage.getAdminById(adminId);
+      
+      if (!admin) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+      
+      // Don't return password
+      const { password, ...adminWithoutPassword } = admin;
+      
+      res.status(200).json(adminWithoutPassword);
+    } catch (error) {
+      console.error("Get admin profile error:", error);
+      res.status(500).json({ message: "Failed to get admin profile" });
+    }
+  });
+  
+  // Update admin profile
+  app.put("/api/admin/profile", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const adminId = req.session.adminId as number;
+      const profileData = req.body;
+      
+      // Validate the profile data using Zod schema
+      const result = updateAdminProfileSchema.safeParse(profileData);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid profile data", 
+          details: result.error.format() 
+        });
+      }
+      
+      const updatedAdmin = await storage.updateAdminProfile(adminId, profileData);
+      
+      if (!updatedAdmin) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+      
+      // Don't return password
+      const { password, ...adminWithoutPassword } = updatedAdmin;
+      
+      res.status(200).json(adminWithoutPassword);
+    } catch (error) {
+      console.error("Update admin profile error:", error);
+      res.status(500).json({ message: "Failed to update admin profile" });
+    }
+  });
+  
+  // Update admin password
+  app.put("/api/admin/password", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const adminId = req.session.adminId as number;
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+      
+      // Validate password data
+      const result = updateAdminPasswordSchema.safeParse({
+        currentPassword,
+        newPassword,
+        confirmPassword
+      });
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid password data", 
+          details: result.error.format() 
+        });
+      }
+      
+      // Check if passwords match
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "New passwords do not match" });
+      }
+      
+      // Update password
+      const success = await storage.updateAdminPassword(adminId, currentPassword, newPassword);
+      
+      if (!success) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      
+      // If this was the admin's first login, update the flag
+      const admin = await storage.getAdminById(adminId);
+      if (admin && admin.isFirstLogin) {
+        await storage.updateAdminLoginStatus(adminId, false);
+      }
+      
+      res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Update admin password error:", error);
+      res.status(500).json({ message: "Failed to update password" });
     }
   });
 
