@@ -11,8 +11,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Admin, UpdateAdminProfile, UpdateAdminPassword } from "@shared/schema";
-import { Loader2, Mail, Phone, User } from "lucide-react";
+import { Admin, UpdateAdminProfile, UpdateAdminPassword, WebsiteSettings, UpdateWebsiteSettings } from "@shared/schema";
+import { Loader2, Mail, Phone, User, Globe, AtSign, MapPin, Instagram, Twitter, Facebook } from "lucide-react";
 import AdminLayout from "@/components/layout/AdminLayout";
 
 // Profile form schema based on UpdateAdminProfile type
@@ -327,73 +327,248 @@ const AdminProfile = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-                    <p className="text-amber-700">
-                      Website settings functionality will be available in the next update.
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Contact Information</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Business Email
-                          </label>
-                          <Input placeholder="contact@sipofeden.com" disabled />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Phone Number
-                          </label>
-                          <Input placeholder="+234 000 0000 000" disabled />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Address
-                          </label>
-                          <Input placeholder="Lagos, Nigeria" disabled />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Social Media</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Instagram
-                          </label>
-                          <Input placeholder="https://instagram.com/sipofeden" disabled />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Twitter/X
-                          </label>
-                          <Input placeholder="https://twitter.com/sipofeden" disabled />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1 text-gray-700">
-                            Facebook
-                          </label>
-                          <Input placeholder="https://facebook.com/sipofeden" disabled />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button className="bg-gray-300 hover:bg-gray-400 text-gray-800" disabled>
-                    Coming Soon
-                  </Button>
-                </div>
+                <WebsiteSettingsForm />
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  );
+};
+
+// Website settings form component
+const websiteSettingsSchema = z.object({
+  name: z.string().min(1, "Store name is required"),
+  businessEmail: z.string().email("Valid business email is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  address: z.string().min(1, "Address is required"),
+  instagram: z.string().optional(),
+  twitter: z.string().optional(),
+  facebook: z.string().optional()
+});
+
+type WebsiteSettingsFormValues = z.infer<typeof websiteSettingsSchema>;
+
+const WebsiteSettingsForm = () => {
+  const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+
+  // Fetch website settings
+  const { data: settings, isLoading } = useQuery<WebsiteSettings>({
+    queryKey: ["/api/website-settings"],
+    enabled: isAuthenticated
+  });
+
+  // Website settings form
+  const settingsForm = useForm<WebsiteSettingsFormValues>({
+    resolver: zodResolver(websiteSettingsSchema),
+    defaultValues: {
+      name: "",
+      businessEmail: "",
+      phoneNumber: "",
+      address: "",
+      instagram: "",
+      twitter: "",
+      facebook: ""
+    },
+    values: settings ? {
+      name: settings.name,
+      businessEmail: settings.businessEmail,
+      phoneNumber: settings.phoneNumber,
+      address: settings.address,
+      instagram: settings.instagram || "",
+      twitter: settings.twitter || "",
+      facebook: settings.facebook || ""
+    } : undefined
+  });
+
+  // Update website settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: UpdateWebsiteSettings) => {
+      const response = await apiRequest("PUT", "/api/admin/website-settings", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/website-settings"] });
+      toast({
+        title: "Settings updated",
+        description: "Website settings have been updated successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update website settings",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const onSettingsSubmit = (data: WebsiteSettingsFormValues) => {
+    updateSettingsMutation.mutate(data);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <Form {...settingsForm}>
+      <form onSubmit={settingsForm.handleSubmit(onSettingsSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Store Information</h3>
+            
+            <FormField
+              control={settingsForm.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Store Name</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input className="pl-9" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Contact Information</h3>
+              
+              <FormField
+                control={settingsForm.control}
+                name="businessEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Email</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <AtSign className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={settingsForm.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={settingsForm.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Social Media Links</h3>
+            
+            <FormField
+              control={settingsForm.control}
+              name="instagram"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instagram</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Instagram className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input className="pl-9" placeholder="https://instagram.com/sipofeden" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={settingsForm.control}
+              name="twitter"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Twitter/X</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Twitter className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input className="pl-9" placeholder="https://twitter.com/sipofeden" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={settingsForm.control}
+              name="facebook"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Facebook</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Facebook className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input className="pl-9" placeholder="https://facebook.com/sipofeden" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        <Button
+          type="submit"
+          disabled={updateSettingsMutation.isPending}
+          className="bg-primary hover:bg-primary/90 text-white"
+        >
+          {updateSettingsMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Website Settings"
+          )}
+        </Button>
+      </form>
+    </Form>
   );
 };
 

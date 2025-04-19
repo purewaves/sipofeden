@@ -39,6 +39,9 @@ export async function runMigrations() {
     // Create subscription plan and bundle tables if they don't exist
     await createSubscriptionAndBundleTables();
     
+    // Create website settings table if it doesn't exist
+    await createWebsiteSettingsTable();
+    
   } catch (error) {
     console.error("Error during migration:", error);
     throw error;
@@ -109,6 +112,57 @@ async function createSubscriptionAndBundleTables() {
     }
   } catch (error) {
     console.error("Error creating subscription and bundle tables:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create website settings table if it doesn't exist
+ */
+async function createWebsiteSettingsTable() {
+  try {
+    // Check if website_settings table exists
+    const tableCheckResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'website_settings'
+      );
+    `);
+    
+    if (!tableCheckResult.rows[0].exists) {
+      console.log("Creating website settings table...");
+      
+      // Create website_settings table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS website_settings (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          business_email TEXT NOT NULL,
+          phone_number TEXT NOT NULL,
+          address TEXT NOT NULL,
+          instagram TEXT,
+          twitter TEXT,
+          facebook TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      // Insert default settings
+      await pool.query(`
+        INSERT INTO website_settings (
+          name, business_email, phone_number, address
+        ) VALUES (
+          'Sip of Eden', 'contact@sipofeden.com', '+234 000 0000 000', 'Lagos, Nigeria'
+        );
+      `);
+      
+      console.log("Website settings table created successfully");
+    } else {
+      console.log("Website settings table already exists");
+    }
+  } catch (error) {
+    console.error("Error creating website settings table:", error);
     throw error;
   }
 }
