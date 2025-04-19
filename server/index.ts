@@ -6,6 +6,13 @@ import { runMigrations } from "./migrations";
 import session from "express-session";
 import { storage } from "./storage";
 
+// Extend the session interface to include adminId
+declare module 'express-session' {
+  interface SessionData {
+    adminId?: number;
+  }
+}
+
 // Create Express app
 const app = express();
 app.use(express.json());
