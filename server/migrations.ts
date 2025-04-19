@@ -32,8 +32,76 @@ export async function runMigrations() {
     } else {
       console.log("Admin table already has the required columns");
     }
+    
+    // Create loyalty-related tables if they don't exist
+    await createLoyaltyTables();
+    
   } catch (error) {
     console.error("Error during migration:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create tables for loyalty points system if they don't exist
+ */
+async function createLoyaltyTables() {
+  try {
+    // Check if loyalty_customers table exists
+    const tableCheckResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'loyalty_customers'
+      );
+    `);
+    
+    if (!tableCheckResult.rows[0].exists) {
+      console.log("Creating loyalty tables...");
+      
+      // Create loyalty_customers table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS loyalty_customers (
+          id SERIAL PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          points INTEGER NOT NULL DEFAULT 0,
+          tier TEXT NOT NULL DEFAULT 'bronze',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      // Create loyalty_rewards table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS loyalty_rewards (
+          id SERIAL PRIMARY KEY,
+          customer_id INTEGER NOT NULL REFERENCES loyalty_customers(id),
+          description TEXT NOT NULL,
+          points_required INTEGER NOT NULL,
+          redeemed BOOLEAN DEFAULT FALSE,
+          redeemed_at TIMESTAMP WITH TIME ZONE,
+          expires_at TIMESTAMP WITH TIME ZONE
+        );
+      `);
+      
+      // Create loyalty_activities table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS loyalty_activities (
+          id SERIAL PRIMARY KEY,
+          customer_id INTEGER NOT NULL REFERENCES loyalty_customers(id),
+          points INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          source TEXT NOT NULL,
+          source_id TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      console.log("Loyalty tables created successfully");
+    } else {
+      console.log("Loyalty tables already exist");
+    }
+  } catch (error) {
+    console.error("Error creating loyalty tables:", error);
     throw error;
   }
 }

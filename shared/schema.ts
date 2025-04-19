@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, primaryKey, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -148,7 +148,85 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
+// Loyalty Points
+export const loyaltyCustomers = pgTable("loyalty_customers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  points: integer("points").notNull().default(0),
+  tier: text("tier").notNull().default("bronze"), // bronze, silver, gold, platinum
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertLoyaltyCustomerSchema = createInsertSchema(loyaltyCustomers).omit({
+  id: true,
+  points: true,
+  tier: true,
+  createdAt: true
+});
+
+export const updateLoyaltyPointsSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  points: z.number().int("Points must be a whole number"),
+  source: z.string() // 'order', 'subscription', 'referral', etc.
+});
+
+export const loyaltyRewards = pgTable("loyalty_rewards", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull(),
+  description: text("description").notNull(),
+  pointsRequired: integer("points_required").notNull(),
+  redeemed: boolean("redeemed").default(false),
+  redeemedAt: timestamp("redeemed_at"),
+  expiresAt: timestamp("expires_at")
+});
+
+export const loyaltyRewardsRelations = relations(loyaltyRewards, ({ one }) => ({
+  customer: one(loyaltyCustomers, {
+    fields: [loyaltyRewards.customerId],
+    references: [loyaltyCustomers.id]
+  })
+}));
+
+export const insertLoyaltyRewardSchema = createInsertSchema(loyaltyRewards).omit({
+  id: true,
+  redeemed: true,
+  redeemedAt: true
+});
+
+export const loyaltyActivities = pgTable("loyalty_activities", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull(),
+  points: integer("points").notNull(),
+  type: text("type").notNull(), // 'earn' or 'redeem'
+  source: text("source").notNull(), // 'order', 'subscription', 'referral', 'reward', etc.
+  sourceId: text("source_id"), // Optional reference to the source object ID (order ID, etc.)
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const loyaltyActivitiesRelations = relations(loyaltyActivities, ({ one }) => ({
+  customer: one(loyaltyCustomers, {
+    fields: [loyaltyActivities.customerId],
+    references: [loyaltyCustomers.id]
+  })
+}));
+
+export const insertLoyaltyActivitySchema = createInsertSchema(loyaltyActivities).omit({
+  id: true,
+  createdAt: true
+});
+
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
 export type UpdateAdminProfile = z.infer<typeof updateAdminProfileSchema>;
 export type UpdateAdminPassword = z.infer<typeof updateAdminPasswordSchema>;
+
+export type LoyaltyCustomer = typeof loyaltyCustomers.$inferSelect;
+export type InsertLoyaltyCustomer = z.infer<typeof insertLoyaltyCustomerSchema>;
+export type UpdateLoyaltyPoints = z.infer<typeof updateLoyaltyPointsSchema>;
+
+export type LoyaltyReward = typeof loyaltyRewards.$inferSelect;
+export type InsertLoyaltyReward = z.infer<typeof insertLoyaltyRewardSchema>;
+
+export type LoyaltyActivity = typeof loyaltyActivities.$inferSelect;
+export type InsertLoyaltyActivity = z.infer<typeof insertLoyaltyActivitySchema>;

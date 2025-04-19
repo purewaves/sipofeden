@@ -5,7 +5,11 @@ import {
   Admin, InsertAdmin, UpdateAdminProfile,
   Order, InsertOrder,
   OrderItem, InsertOrderItem,
-  juices, cartItems, subscriptions, admins, orders, orderItems
+  LoyaltyCustomer, InsertLoyaltyCustomer, UpdateLoyaltyPoints,
+  LoyaltyReward, InsertLoyaltyReward,
+  LoyaltyActivity, InsertLoyaltyActivity,
+  juices, cartItems, subscriptions, admins, orders, orderItems,
+  loyaltyCustomers, loyaltyRewards, loyaltyActivities
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -46,6 +50,16 @@ export interface IStorage {
   getOrders(): Promise<Order[]>;
   getOrderById(id: number): Promise<(Order & { items: (OrderItem & { juice: Juice })[] }) | undefined>;
   updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  
+  // Loyalty operations
+  getLoyaltyCustomerByEmail(email: string): Promise<LoyaltyCustomer | undefined>;
+  createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer>;
+  updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer>;
+  getLoyaltyCustomerRewards(customerId: number): Promise<LoyaltyReward[]>;
+  getLoyaltyActivities(customerId: number, limit?: number): Promise<(LoyaltyActivity & { customer: LoyaltyCustomer })[]>;
+  createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward>;
+  redeemReward(rewardId: number): Promise<LoyaltyReward | undefined>;
+  getLoyaltyTiers(): Promise<{ tier: string, minimumPoints: number, benefits: string[] }[]>;
   
   sessionStore: session.Store;
 }
@@ -328,6 +342,153 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result[0];
+  }
+  
+  // Loyalty operations
+  async getLoyaltyCustomerByEmail(email: string): Promise<LoyaltyCustomer | undefined> {
+    const result = await db.select()
+      .from(loyaltyCustomers)
+      .where(eq(loyaltyCustomers.email, email));
+    
+    return result[0];
+  }
+  
+  async createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer> {
+    const result = await db.insert(loyaltyCustomers)
+      .values(customer)
+      .returning();
+    
+    return result[0];
+  }
+  
+  async updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer> {
+    // Get the customer
+    const customerResult = await db.select()
+      .from(loyaltyCustomers)
+      .where(eq(loyaltyCustomers.id, customerId));
+    
+    if (customerResult.length === 0) {
+      throw new Error(`Customer with id ${customerId} not found`);
+    }
+    
+    const customer = customerResult[0];
+    
+    // Calculate new points total
+    const newPoints = type === 'earn' ? customer.points + points : Math.max(0, customer.points - points);
+    
+    // Determine tier based on new points
+    const tier = this.calculateTier(newPoints);
+    
+    // Update customer points and tier
+    const updatedCustomer = await db.update(loyaltyCustomers)
+      .set({ 
+        points: newPoints,
+        tier
+      })
+      .where(eq(loyaltyCustomers.id, customerId))
+      .returning();
+    
+    // Record activity
+    await db.insert(loyaltyActivities)
+      .values({
+        customerId,
+        points,
+        type,
+        source,
+        sourceId
+      });
+    
+    return updatedCustomer[0];
+  }
+  
+  private calculateTier(points: number): string {
+    if (points >= 10000) return 'platinum';
+    if (points >= 5000) return 'gold';
+    if (points >= 1000) return 'silver';
+    return 'bronze';
+  }
+  
+  async getLoyaltyCustomerRewards(customerId: number): Promise<LoyaltyReward[]> {
+    return db.select()
+      .from(loyaltyRewards)
+      .where(eq(loyaltyRewards.customerId, customerId));
+  }
+  
+  async getLoyaltyActivities(customerId: number, limit: number = 10): Promise<(LoyaltyActivity & { customer: LoyaltyCustomer })[]> {
+    const activities = await db.select({
+      activity: loyaltyActivities,
+      customer: loyaltyCustomers
+    })
+    .from(loyaltyActivities)
+    .leftJoin(loyaltyCustomers, eq(loyaltyActivities.customerId, loyaltyCustomers.id))
+    .where(eq(loyaltyActivities.customerId, customerId))
+    .orderBy(loyaltyActivities.createdAt)
+    .limit(limit);
+    
+    return activities.map(item => ({
+      ...item.activity,
+      customer: item.customer!
+    }));
+  }
+  
+  async createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward> {
+    const result = await db.insert(loyaltyRewards)
+      .values(reward)
+      .returning();
+    
+    return result[0];
+  }
+  
+  async redeemReward(rewardId: number): Promise<LoyaltyReward | undefined> {
+    const now = new Date();
+    
+    const result = await db.update(loyaltyRewards)
+      .set({ 
+        redeemed: true,
+        redeemedAt: now
+      })
+      .where(eq(loyaltyRewards.id, rewardId))
+      .returning();
+    
+    if (result.length === 0) return undefined;
+    
+    const reward = result[0];
+    
+    // Deduct points from customer
+    await this.updateLoyaltyPoints(
+      reward.customerId,
+      reward.pointsRequired,
+      'redeem',
+      'reward',
+      reward.id.toString()
+    );
+    
+    return reward;
+  }
+  
+  async getLoyaltyTiers(): Promise<{ tier: string, minimumPoints: number, benefits: string[] }[]> {
+    return [
+      {
+        tier: 'bronze',
+        minimumPoints: 0,
+        benefits: ['Earn 1 point per ₦100 spent', 'Birthday reward']
+      },
+      {
+        tier: 'silver',
+        minimumPoints: 1000,
+        benefits: ['Earn 1.5 points per ₦100 spent', 'Birthday reward', '10% off on subscription plans']
+      },
+      {
+        tier: 'gold',
+        minimumPoints: 5000,
+        benefits: ['Earn 2 points per ₦100 spent', 'Birthday reward', '15% off on subscription plans', 'Free delivery']
+      },
+      {
+        tier: 'platinum',
+        minimumPoints: 10000,
+        benefits: ['Earn 3 points per ₦100 spent', 'Birthday reward', '20% off on subscription plans', 'Free delivery', 'Priority support']
+      }
+    ];
   }
 }
 
