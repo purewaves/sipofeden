@@ -101,6 +101,11 @@ const Header = () => {
                   Loyalty
                 </div>
               </Link>
+              <Link href="/juice-chat">
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
+                  <MessageCircle className="h-4 w-4 mr-1" /> Juice Chat
+                </div>
+              </Link>
               <Link href="/admin">
                 <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Admin

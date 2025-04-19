@@ -18,6 +18,7 @@ import {
   updateAdminProfileSchema,
   updateAdminPasswordSchema,
   insertLoyaltyCustomerSchema,
+  updateWebsiteSettingsSchema,
   updateLoyaltyPointsSchema,
   insertLoyaltyRewardSchema,
   loyaltyCustomers,
