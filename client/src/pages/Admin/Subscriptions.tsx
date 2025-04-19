@@ -86,7 +86,7 @@ const AdminSubscriptions = () => {
     data: subscriptions = [], 
     isLoading: isLoadingSubscriptions 
   } = useQuery<Subscription[]>({
-    queryKey: ['/api/admin/subscriptions'],
+    queryKey: ['/api/admin/subscription-plans'],
     refetchOnWindowFocus: false,
   });
   
@@ -128,10 +128,10 @@ const AdminSubscriptions = () => {
       const payload = { ...data, features };
       
       if (editingItem && 'frequency' in editingItem) {
-        const response = await apiRequest('PUT', `/api/admin/subscriptions/${editingItem.id}`, payload);
+        const response = await apiRequest('PUT', `/api/admin/subscription-plans/${editingItem.id}`, payload);
         return response.json();
       } else {
-        const response = await apiRequest('POST', '/api/admin/subscriptions', payload);
+        const response = await apiRequest('POST', '/api/admin/subscription-plans', payload);
         return response.json();
       }
     },
@@ -145,7 +145,7 @@ const AdminSubscriptions = () => {
       setIsSubscriptionDialogOpen(false);
       subscriptionForm.reset();
       setEditingItem(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subscription-plans'] });
     },
     onError: (error: any) => {
       toast({
@@ -194,7 +194,7 @@ const AdminSubscriptions = () => {
   // Delete subscription mutation
   const deleteSubscriptionMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest('DELETE', `/api/admin/subscriptions/${id}`);
+      const response = await apiRequest('DELETE', `/api/admin/subscription-plans/${id}`);
       return response.json();
     },
     onSuccess: () => {
@@ -202,7 +202,7 @@ const AdminSubscriptions = () => {
         title: "Subscription Deleted",
         description: "The subscription has been successfully deleted.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subscription-plans'] });
     },
     onError: (error: any) => {
       toast({
