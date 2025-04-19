@@ -45,16 +45,61 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
 });
 
 // Subscription plans
-export const subscriptions = pgTable("subscriptions", {
+export const subscriptionPlans = pgTable("subscription_plans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
-  plan: text("plan").notNull(),
-  // Additional fields can be added here
+  description: text("description").notNull(),
+  price: doublePrecision("price").notNull(),
+  frequency: text("frequency").notNull(), // weekly, monthly, etc.
+  features: text("features").array().notNull(), // Array of features
+  createdAt: timestamp("created_at").defaultNow()
 });
 
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
+  id: true,
+  createdAt: true
+});
+
+// Subscription orders (for individual customer subscriptions)
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  address: text("address").notNull(),
+  status: text("status").notNull().default("active"), // active, paused, cancelled
+  startDate: timestamp("start_date").notNull(),
+  nextDelivery: timestamp("next_delivery"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  plan: one(subscriptionPlans, {
+    fields: [subscriptions.planId],
+    references: [subscriptionPlans.id]
+  })
+}));
+
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
-  id: true
+  id: true,
+  createdAt: true
+});
+
+// Juice Bundles
+export const bundles = pgTable("bundles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  price: doublePrecision("price").notNull(),
+  juiceIds: integer("juice_ids").array().notNull(), // Array of juice IDs
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertBundleSchema = createInsertSchema(bundles).omit({
+  id: true,
+  createdAt: true
 });
 
 // Order Table

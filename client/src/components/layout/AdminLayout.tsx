@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Home, Package, ShoppingCart, Users, BarChart3, LogOut } from "lucide-react";
+import { Home, Package, ShoppingCart, Users, BarChart3, LogOut, CalendarRange } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -35,6 +35,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { label: "Dashboard", href: "/admin/dashboard", icon: <Home className="h-5 w-5" /> },
     { label: "Products", href: "/admin/products", icon: <Package className="h-5 w-5" /> },
     { label: "Orders", href: "/admin/orders", icon: <ShoppingCart className="h-5 w-5" /> },
+    { label: "Subscriptions", href: "/admin/subscriptions", icon: <CalendarRange className="h-5 w-5" /> },
     { label: "Loyalty", href: "/admin/loyalty", icon: <Users className="h-5 w-5" /> },
   ];
 

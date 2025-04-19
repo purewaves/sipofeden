@@ -33,9 +33,10 @@ const Footer = () => {
           <div>
             <h4 className="font-heading font-semibold mb-4">Shop</h4>
             <ul className="space-y-2">
-              <li><Link href="/shop"><a className="text-gray-600 hover:text-primary transition-colors">All Juices</a></Link></li>
+              <li><Link href="/shop"><div className="text-gray-600 hover:text-primary transition-colors cursor-pointer">All Juices</div></Link></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Bundles</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Juice Cards (coming soon)</a></li>
+              <li><Link href="/loyalty"><div className="text-gray-600 hover:text-primary transition-colors cursor-pointer">Loyalty Program</div></Link></li>
             </ul>
           </div>
           
@@ -50,7 +51,7 @@ const Footer = () => {
             <h4 className="font-heading font-semibold mb-4">About</h4>
             <ul className="space-y-2">
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Our Story</a></li>
-              <li><Link href="/admin"><a className="text-gray-600 hover:text-primary transition-colors">Admin</a></Link></li>
+              <li><Link href="/admin"><div className="text-gray-600 hover:text-primary transition-colors cursor-pointer">Admin</div></Link></li>
             </ul>
           </div>
         </div>

@@ -18,6 +18,7 @@ import AdminDashboard from "@/pages/Admin/Dashboard";
 import AdminProducts from "@/pages/Admin/Products";
 import AdminOrders from "@/pages/Admin/Orders";
 import AdminLoyalty from "@/pages/Admin/Loyalty";
+import AdminSubscriptions from "@/pages/Admin/Subscriptions";
 
 // Layout Components
 import Header from "@/components/layout/Header";
@@ -51,6 +52,7 @@ function Router() {
           <Route path="/admin/dashboard" component={AdminDashboard} />
           <Route path="/admin/products" component={AdminProducts} />
           <Route path="/admin/orders" component={AdminOrders} />
+          <Route path="/admin/subscriptions" component={AdminSubscriptions} />
           <Route path="/admin/loyalty" component={AdminLoyalty} />
           
           {/* Fallback */}
