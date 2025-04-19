@@ -2,20 +2,55 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Check, Loader2 } from "lucide-react";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 
+// Types for subscription plans from the database
+interface SubscriptionPlan {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  frequency: string;
+  features: string[];
+  createdAt: string;
+}
+
+interface Bundle {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  juiceIds: number[];
+  imageUrl: string;
+  createdAt: string;
+}
+
+// Create a schema for the form
 const subscriptionSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
-  plan: z.enum(["weekly", "biweekly", "monthly"]),
+  phone: z.string().optional(),
+  address: z.string().min(5, { message: "Please enter your delivery address" }),
+  planId: z.coerce.number(),
+  additionalNotes: z.string().optional(),
 });
 
 type SubscriptionFormValues = z.infer<typeof subscriptionSchema>;
@@ -23,13 +58,29 @@ type SubscriptionFormValues = z.infer<typeof subscriptionSchema>;
 const Subscribe = () => {
   const { toast } = useToast();
   const [isSuccess, setIsSuccess] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  
+  // Fetch subscription plans
+  const { data: subscriptionPlans = [], isLoading: isLoadingPlans } = useQuery<SubscriptionPlan[]>({
+    queryKey: ['/api/subscription-plans'],
+    refetchOnWindowFocus: false,
+  });
+  
+  // Fetch bundles
+  const { data: bundles = [], isLoading: isLoadingBundles } = useQuery<Bundle[]>({
+    queryKey: ['/api/bundles'],
+    refetchOnWindowFocus: false,
+  });
 
   const form = useForm<SubscriptionFormValues>({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
       name: "",
       email: "",
-      plan: "weekly",
+      phone: "",
+      address: "",
+      planId: 0,
+      additionalNotes: "",
     },
   });
 
@@ -57,6 +108,12 @@ const Subscribe = () => {
 
   const onSubmit = (data: SubscriptionFormValues) => {
     subscription.mutate(data);
+  };
+  
+  // Handle selecting a plan
+  const handleSelectPlan = (planId: number) => {
+    setSelectedPlanId(planId);
+    form.setValue('planId', planId);
   };
 
   return (
@@ -96,101 +153,186 @@ const Subscribe = () => {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-white card-shadow mb-6">
-              <CardContent className="pt-6">
-                <h2 className="font-heading text-xl font-semibold mb-4">Choose Your Plan</h2>
-                
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your email" type="email" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="plan"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Subscription Plan</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="space-y-3"
-                            >
-                              <FormItem className="flex items-center space-x-3 space-y-0">
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-semibold mb-4">Choose Your Plan</h2>
+                {isLoadingPlans ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : subscriptionPlans.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <p className="text-center text-gray-500">No subscription plans available at the moment.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {subscriptionPlans.map((plan) => (
+                      <Card 
+                        key={plan.id}
+                        className={`cursor-pointer transition-all duration-200 ${
+                          selectedPlanId === plan.id 
+                            ? 'border-2 border-primary shadow-lg' 
+                            : 'hover:shadow-md'
+                        }`}
+                        onClick={() => handleSelectPlan(plan.id)}
+                      >
+                        <CardHeader>
+                          <CardTitle>{plan.name}</CardTitle>
+                          <CardDescription>
+                            {plan.frequency} · {formatCurrency(plan.price)}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm mb-4">{plan.description}</p>
+                          <ul className="space-y-2">
+                            {plan.features.map((feature, index) => (
+                              <li key={index} className="flex items-start">
+                                <Check className="h-4 w-4 text-primary mr-2 mt-1 flex-shrink-0" />
+                                <span className="text-sm">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                        <CardFooter>
+                          <Button 
+                            variant={selectedPlanId === plan.id ? "default" : "outline"}
+                            className="w-full"
+                            onClick={() => handleSelectPlan(plan.id)}
+                          >
+                            {selectedPlanId === plan.id ? "Selected" : "Select Plan"}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {selectedPlanId && (
+                <Card className="bg-white card-shadow mb-6">
+                  <CardHeader>
+                    <CardTitle>Complete Your Subscription</CardTitle>
+                    <CardDescription>
+                      Enter your details to complete your subscription
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Your name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email Address</FormLabel>
                                 <FormControl>
-                                  <RadioGroupItem value="weekly" />
+                                  <Input placeholder="Your email" type="email" {...field} />
                                 </FormControl>
-                                <FormLabel className="font-normal">
-                                  <span className="font-medium">Weekly</span> - ₦12,500/week (Save 10%)
-                                </FormLabel>
+                                <FormMessage />
                               </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Phone Number (Optional)</FormLabel>
                                 <FormControl>
-                                  <RadioGroupItem value="biweekly" />
+                                  <Input placeholder="Your phone number" {...field} />
                                 </FormControl>
-                                <FormLabel className="font-normal">
-                                  <span className="font-medium">Bi-weekly</span> - ₦22,000/2 weeks (Save 8%)
-                                </FormLabel>
+                                <FormMessage />
                               </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="monthly" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                  <span className="font-medium">Monthly</span> - ₦42,000/month (Save 5%)
-                                </FormLabel>
-                              </FormItem>
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-accent hover:bg-accent/90 text-white"
-                      disabled={subscription.isPending}
-                    >
-                      {subscription.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        "Start Your Subscription"
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
+                            )}
+                          />
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Delivery Address</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Enter your full delivery address" 
+                                  className="min-h-[80px]"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="additionalNotes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Additional Notes (Optional)</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Any special instructions or preferences" 
+                                  className="min-h-[80px]"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="planId"
+                          render={({ field }) => (
+                            <FormItem className="hidden">
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button 
+                          type="submit" 
+                          className="w-full bg-accent hover:bg-accent/90 text-white mt-4"
+                          disabled={subscription.isPending}
+                        >
+                          {subscription.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            "Start Your Subscription"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
           
           <p className="text-sm text-gray-600">
