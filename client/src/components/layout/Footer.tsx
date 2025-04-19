@@ -35,15 +35,13 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link href="/shop"><a className="text-gray-600 hover:text-primary transition-colors">All Juices</a></Link></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Bundles</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Gift Cards</a></li>
+              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Juice Cards (coming soon)</a></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-heading font-semibold mb-4">Help</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Returns</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Track Order</a></li>
               <li><a href="#" className="text-gray-600 hover:text-primary transition-colors">Contact Us</a></li>
             </ul>
           </div>
