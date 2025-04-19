@@ -222,20 +222,23 @@ const AdminProfile = () => {
                       )}
                     />
 
-                    <Button
-                      type="submit"
-                      disabled={updateProfileMutation.isPending}
-                      className="bg-primary hover:bg-primary/90 text-white"
-                    >
-                      {updateProfileMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+                    <div className="mt-6 pt-4 pb-4">
+                      <Button
+                        type="submit"
+                        disabled={updateProfileMutation.isPending}
+                        className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
+                        size="lg"
+                      >
+                        {updateProfileMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Profile Changes"
+                        )}
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>
@@ -298,20 +301,23 @@ const AdminProfile = () => {
                       )}
                     />
 
-                    <Button
-                      type="submit"
-                      disabled={updatePasswordMutation.isPending}
-                      className="bg-primary hover:bg-primary/90 text-white"
-                    >
-                      {updatePasswordMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Updating...
-                        </>
-                      ) : (
-                        "Update Password"
-                      )}
-                    </Button>
+                    <div className="mt-6 pt-4 pb-4">
+                      <Button
+                        type="submit"
+                        disabled={updatePasswordMutation.isPending}
+                        className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
+                        size="lg"
+                      >
+                        {updatePasswordMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          "Update Password"
+                        )}
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>
@@ -553,20 +559,23 @@ const WebsiteSettingsForm = () => {
           </div>
         </div>
         
-        <Button
-          type="submit"
-          disabled={updateSettingsMutation.isPending}
-          className="bg-primary hover:bg-primary/90 text-white"
-        >
-          {updateSettingsMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Website Settings"
-          )}
-        </Button>
+        <div className="mt-6 pt-4 pb-4">
+          <Button
+            type="submit"
+            disabled={updateSettingsMutation.isPending}
+            className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
+            size="lg"
+          >
+            {updateSettingsMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Website Settings"
+            )}
+          </Button>
+        </div>
       </form>
     </Form>
   );

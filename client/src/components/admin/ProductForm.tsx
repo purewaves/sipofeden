@@ -434,11 +434,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
             )}
           />
 
-          <div className="sticky bottom-0 left-0 right-0 bg-white pt-4 pb-6 px-6 border-t mt-6 -mx-2 flex flex-col sm:flex-row-reverse gap-3 sm:gap-4 shadow-lg">
+          <div className="mt-8 pt-4 pb-4 flex flex-col sm:flex-row-reverse gap-3 sm:gap-4">
             <Button 
               type="submit" 
               disabled={isPending} 
-              className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-6 h-auto font-medium"
+              className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-5 h-auto font-medium"
               size="lg"
             >
               {isPending ? (
@@ -454,7 +454,7 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
               type="button" 
               variant="outline" 
               onClick={onClose}
-              className="border-gray-300 text-gray-700 w-full sm:w-auto text-base py-6 h-auto font-medium"
+              className="border-gray-300 text-gray-700 w-full sm:w-auto text-base py-5 h-auto font-medium"
               size="lg"
             >
               Cancel
