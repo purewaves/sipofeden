@@ -34,10 +34,13 @@ interface JuiceRecommendation {
   ingredients: string;
   benefits: string[];
   tags: string[];
+  id?: number;
+  price?: number;
 }
 
 const juiceData: JuiceRecommendation[] = [
   {
+    id: 1,
     name: "Wild Taste",
     image: "/assets/10f5e9d3-8a86-4858-8ad1-5859e7e98e89-removebg-preview.png",
     ingredients: "Cucumber + Apple + Spinach",
@@ -47,9 +50,11 @@ const juiceData: JuiceRecommendation[] = [
       "Low sugar and adds a refreshing taste",
       "Provides anti-inflammatory effect"
     ],
-    tags: ["detox", "immunity", "refreshing", "digestion", "low sugar", "hydration"]
+    tags: ["detox", "immunity", "refreshing", "digestion", "low sugar", "hydration"],
+    price: 2500
   },
   {
+    id: 2,
     name: "Orange Juice",
     image: "/assets/8e75a215-9279-4c1f-8c70-c51150da25a5-removebg-preview.png",
     ingredients: "Orange",
@@ -60,7 +65,8 @@ const juiceData: JuiceRecommendation[] = [
       "Rich in vitamins that support skin health",
       "May help lower cholesterol"
     ],
-    tags: ["immunity", "skin health", "antioxidants", "vitamin c"]
+    tags: ["immunity", "skin health", "antioxidants", "vitamin c"],
+    price: 2000
   },
   {
     name: "Melon Twist",
