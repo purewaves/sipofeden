@@ -897,6 +897,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Website Settings Routes
+  app.get("/api/website-settings", async (req: Request, res: Response) => {
+    try {
+      const settings = await storage.getWebsiteSettings();
+      res.status(200).json(settings);
+    } catch (error: any) {
+      console.error("Error fetching website settings:", error);
+      res.status(500).json({ message: "Failed to fetch website settings" });
+    }
+  });
+
+  app.put("/api/admin/website-settings", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const settings = await storage.updateWebsiteSettings(req.body);
+      res.status(200).json(settings);
+    } catch (error: any) {
+      console.error("Error updating website settings:", error);
+      res.status(500).json({ message: "Failed to update website settings" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
   return httpServer;

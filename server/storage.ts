@@ -10,8 +10,9 @@ import {
   LoyaltyCustomer, InsertLoyaltyCustomer, UpdateLoyaltyPoints,
   LoyaltyReward, InsertLoyaltyReward,
   LoyaltyActivity, InsertLoyaltyActivity,
+  WebsiteSettings, UpdateWebsiteSettings,
   juices, cartItems, subscriptionPlans, subscriptions, bundles, admins, orders, orderItems,
-  loyaltyCustomers, loyaltyRewards, loyaltyActivities
+  loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -583,6 +584,50 @@ export class DatabaseStorage implements IStorage {
         benefits: ['Earn 3 points per ₦100 spent', 'Birthday reward', '20% off on subscription plans', 'Free delivery', 'Priority support']
       }
     ];
+  }
+
+  // Website Settings operations
+  async getWebsiteSettings(): Promise<WebsiteSettings> {
+    // Check if settings exist
+    const settings = await db.select().from(websiteSettings);
+    
+    // If no settings exist, create default settings
+    if (settings.length === 0) {
+      return this.createDefaultWebsiteSettings();
+    }
+    
+    return settings[0];
+  }
+
+  async updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings> {
+    const existingSettings = await this.getWebsiteSettings();
+    
+    // Update the settings
+    const result = await db.update(websiteSettings)
+      .set({
+        ...settings,
+        updatedAt: new Date()
+      })
+      .where(eq(websiteSettings.id, existingSettings.id))
+      .returning();
+    
+    return result[0];
+  }
+
+  private async createDefaultWebsiteSettings(): Promise<WebsiteSettings> {
+    const result = await db.insert(websiteSettings)
+      .values({
+        name: "Sip of Eden",
+        businessEmail: "contact@sipofeden.com",
+        phoneNumber: "+234 000 0000 000",
+        address: "Lagos, Nigeria",
+        instagram: "https://instagram.com/sipofeden",
+        twitter: "https://twitter.com/sipofeden",
+        facebook: "https://facebook.com/sipofeden"
+      })
+      .returning();
+    
+    return result[0];
   }
 }
 
