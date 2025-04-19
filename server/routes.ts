@@ -143,13 +143,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate partial update
       const validatedData = insertJuiceSchema.partial().parse(req.body);
       
+      // Log the update for debugging
+      console.log(`Updating juice ${id} with data:`, validatedData);
+      
       const updatedJuice = await storage.updateJuice(id, validatedData);
       if (!updatedJuice) {
         return res.status(404).json({ message: "Juice not found" });
       }
       
-      res.json(updatedJuice);
+      // Get the fresh data to ensure we have the latest
+      const freshJuice = await storage.getJuiceById(id);
+      
+      res.json(freshJuice || updatedJuice);
     } catch (error) {
+      console.error("Error updating juice:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid juice data", errors: error.errors });
       }

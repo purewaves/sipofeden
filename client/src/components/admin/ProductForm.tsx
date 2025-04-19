@@ -121,6 +121,15 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       setPreviewImage(data.imageUrl);
       setIsUploading(false);
       
+      // If editing mode, automatically update the product with the new image
+      if (isEditing && initialData) {
+        const updatedData = {
+          ...initialData,
+          imageUrl: data.imageUrl
+        };
+        updateProductMutation.mutate(updatedData);
+      }
+      
       toast({
         title: "Image uploaded",
         description: "The image has been uploaded successfully",
@@ -412,11 +421,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
             )}
           />
 
-          <div className="flex justify-end space-x-2">
+          <div className="sticky bottom-0 bg-white p-4 border-t mt-6 -mx-2 flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="bg-primary text-white hover:bg-primary/90">
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
