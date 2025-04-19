@@ -102,18 +102,19 @@ const JuiceCategories = () => {
         </div>
         
         <Tabs defaultValue="all" className="w-full" onValueChange={setActiveCategory}>
-          <div className="flex justify-center mb-8">
-            <TabsList className="bg-white p-1 rounded-full shadow-sm">
+          <div className="flex justify-center mb-8 overflow-x-auto pb-2">
+            <TabsList className="bg-white p-1 rounded-full shadow-sm flex-nowrap">
               {categories.map((category) => {
                 const Icon = category.icon;
                 return (
                   <TabsTrigger 
                     key={category.id} 
                     value={category.id}
-                    className="rounded-full px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                    className="rounded-full px-3 sm:px-4 py-2 flex-shrink-0 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-xs sm:text-sm whitespace-nowrap"
                   >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {category.name}
+                    <Icon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">{category.name}</span>
+                    <span className="xs:hidden">{category.name.split(' ')[0]}</span>
                   </TabsTrigger>
                 );
               })}
