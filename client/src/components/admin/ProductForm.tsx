@@ -434,19 +434,30 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
             )}
           />
 
-          <div className="sticky bottom-0 bg-white p-4 border-t mt-6 -mx-2 flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending} className="bg-primary text-white hover:bg-primary/90">
+          <div className="sticky bottom-0 left-0 right-0 bg-white pt-4 pb-6 px-6 border-t mt-6 -mx-2 flex flex-col sm:flex-row-reverse gap-3 sm:gap-4 shadow-lg">
+            <Button 
+              type="submit" 
+              disabled={isPending} 
+              className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto text-base py-6 h-auto font-medium"
+              size="lg"
+            >
               {isPending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   {isEditing ? "Updating..." : "Creating..."}
                 </>
               ) : (
                 isEditing ? "Update Product" : "Create Product"
               )}
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="border-gray-300 text-gray-700 w-full sm:w-auto text-base py-6 h-auto font-medium"
+              size="lg"
+            >
+              Cancel
             </Button>
           </div>
         </form>
