@@ -23,25 +23,25 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <a className="text-2xl font-brand font-bold">
+              <div className="text-2xl font-brand font-bold cursor-pointer">
                 <Logo />
-              </a>
+              </div>
             </Link>
           </div>
           
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex space-x-8">
             <Link href="/">
-              <a className="font-medium hover:text-primary transition-colors">Home</a>
+              <div className="font-medium hover:text-primary transition-colors cursor-pointer">Home</div>
             </Link>
             <Link href="/shop">
-              <a className="font-medium hover:text-primary transition-colors">Shop</a>
+              <div className="font-medium hover:text-primary transition-colors cursor-pointer">Shop</div>
             </Link>
             <Link href="/subscribe">
-              <a className="font-medium hover:text-primary transition-colors">Subscribe</a>
+              <div className="font-medium hover:text-primary transition-colors cursor-pointer">Subscribe</div>
             </Link>
             <Link href="/loyalty">
-              <a className="font-medium hover:text-primary transition-colors">Loyalty</a>
+              <div className="font-medium hover:text-primary transition-colors cursor-pointer">Loyalty</div>
             </Link>
           </nav>
           
@@ -77,29 +77,29 @@ const Header = () => {
           <div className="md:hidden mt-4 pb-4">
             <nav className="flex flex-col space-y-3">
               <Link href="/">
-                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Home
-                </a>
+                </div>
               </Link>
               <Link href="/shop">
-                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Shop
-                </a>
+                </div>
               </Link>
               <Link href="/subscribe">
-                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Subscribe
-                </a>
+                </div>
               </Link>
               <Link href="/loyalty">
-                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Loyalty
-                </a>
+                </div>
               </Link>
               <Link href="/admin">
-                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Admin
-                </a>
+                </div>
               </Link>
             </nav>
           </div>

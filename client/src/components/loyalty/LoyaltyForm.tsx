@@ -1,130 +1,101 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { apiRequest } from '@/lib/queryClient';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Validation schema for the form
-const formSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
-  email: z.string().email({ message: "Invalid email address" })
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-// Props for the component
 interface LoyaltyFormProps {
-  onSuccess: (customer: any) => void;
-  onCancel: () => void;
+  onSuccess?: (data: any) => void;
 }
 
-const LoyaltyForm = ({ onSuccess, onCancel }: LoyaltyFormProps) => {
+const LoyaltyForm = ({ onSuccess }: LoyaltyFormProps) => {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Initialize the form
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      email: ''
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  
+  const registerMutation = useMutation({
+    mutationFn: async (data: { email: string; name: string }) => {
+      const res = await apiRequest('POST', '/api/loyalty/customers', data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Welcome to our Loyalty Program!',
+        description: "You've been registered successfully and earned your first points.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/loyalty/customers'] });
+      setEmail('');
+      setName('');
+      if (onSuccess) onSuccess(data);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
     }
   });
-
-  // Submit handler
-  const onSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
-    try {
-      const response = await apiRequest('POST', '/api/loyalty/customers', data);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to register');
-      }
-      
-      const customer = await response.json();
-      onSuccess(customer);
-      
-    } catch (error: any) {
-      console.error('Registration error:', error);
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !name) {
       toast({
-        title: "Registration Failed",
-        description: error.message || "An error occurred during registration. Please try again.",
-        variant: "destructive"
+        title: 'Missing Information',
+        description: 'Please provide both your name and email address.',
+        variant: 'destructive',
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+    registerMutation.mutate({ email, name });
   };
-
+  
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onCancel}
-            className="h-8 w-8"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <CardTitle>Join Our Loyalty Program</CardTitle>
-            <CardDescription>Earn points with every purchase and unlock rewards</CardDescription>
-          </div>
-        </div>
+        <CardTitle>Join Our Loyalty Program</CardTitle>
+        <CardDescription>
+          Sign up to start earning points and unlock exclusive rewards
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your full name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Your Name</Label>
+            <Input 
+              id="name"
+              placeholder="Enter your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="Enter your email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="email">Your Email</Label>
+            <Input 
+              id="email"
+              type="email"
+              placeholder="Enter your email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
-            <Button 
-              type="submit" 
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Registering...' : 'Register'}
-            </Button>
-          </form>
-        </Form>
+          </div>
+          
+          <Button 
+            type="submit"
+            className="w-full"
+            disabled={registerMutation.isPending}
+          >
+            {registerMutation.isPending ? 'Signing Up...' : 'Join Now'}
+          </Button>
+        </form>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <p className="text-sm text-muted-foreground">
-          Already have an account? Use the email lookup above.
-        </p>
-      </CardFooter>
     </Card>
   );
 };
