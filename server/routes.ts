@@ -280,6 +280,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subscription Plan routes (admin)
+  app.get("/api/admin/subscription-plans", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const plans = await storage.getAllSubscriptionPlans();
+      res.json(plans);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription plans" });
+    }
+  });
+
+  app.get("/api/admin/subscription-plans/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid subscription plan ID" });
+      }
+      
+      const plan = await storage.getSubscriptionPlanById(id);
+      if (!plan) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      res.json(plan);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription plan" });
+    }
+  });
+
+  app.post("/api/admin/subscription-plans", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertSubscriptionPlanSchema.parse(req.body);
+      const newPlan = await storage.createSubscriptionPlan(validatedData);
+      res.status(201).json(newPlan);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid subscription plan data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create subscription plan" });
+    }
+  });
+
+  app.put("/api/admin/subscription-plans/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid subscription plan ID" });
+      }
+      
+      // Validate partial update
+      const validatedData = insertSubscriptionPlanSchema.partial().parse(req.body);
+      
+      const updatedPlan = await storage.updateSubscriptionPlan(id, validatedData);
+      if (!updatedPlan) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      res.json(updatedPlan);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid subscription plan data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update subscription plan" });
+    }
+  });
+
+  app.delete("/api/admin/subscription-plans/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid subscription plan ID" });
+      }
+      
+      const success = await storage.deleteSubscriptionPlan(id);
+      if (!success) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      res.json({ message: "Subscription plan deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete subscription plan" });
+    }
+  });
+
+  // Bundle routes (admin)
+  app.get("/api/admin/bundles", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bundles = await storage.getAllBundles();
+      res.json(bundles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bundles" });
+    }
+  });
+
+  app.get("/api/admin/bundles/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid bundle ID" });
+      }
+      
+      const bundle = await storage.getBundleById(id);
+      if (!bundle) {
+        return res.status(404).json({ message: "Bundle not found" });
+      }
+      
+      res.json(bundle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bundle" });
+    }
+  });
+
+  app.post("/api/admin/bundles", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertBundleSchema.parse(req.body);
+      const newBundle = await storage.createBundle(validatedData);
+      res.status(201).json(newBundle);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid bundle data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create bundle" });
+    }
+  });
+
+  app.put("/api/admin/bundles/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid bundle ID" });
+      }
+      
+      // Validate partial update
+      const validatedData = insertBundleSchema.partial().parse(req.body);
+      
+      const updatedBundle = await storage.updateBundle(id, validatedData);
+      if (!updatedBundle) {
+        return res.status(404).json({ message: "Bundle not found" });
+      }
+      
+      res.json(updatedBundle);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid bundle data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update bundle" });
+    }
+  });
+
+  app.delete("/api/admin/bundles/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid bundle ID" });
+      }
+      
+      const success = await storage.deleteBundle(id);
+      if (!success) {
+        return res.status(404).json({ message: "Bundle not found" });
+      }
+      
+      res.json({ message: "Bundle deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete bundle" });
+    }
+  });
+
+  // Public subscription plan routes
+  app.get("/api/subscription-plans", async (req: Request, res: Response) => {
+    try {
+      const plans = await storage.getAllSubscriptionPlans();
+      res.json(plans);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription plans" });
+    }
+  });
+
+  // Public bundle routes
+  app.get("/api/bundles", async (req: Request, res: Response) => {
+    try {
+      const bundles = await storage.getAllBundles();
+      res.json(bundles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch bundles" });
+    }
+  });
+
+  // Customer subscription routes (existing route)
   app.get("/api/admin/subscriptions", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const subscriptions = await storage.getSubscriptions();

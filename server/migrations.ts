@@ -36,8 +36,79 @@ export async function runMigrations() {
     // Create loyalty-related tables if they don't exist
     await createLoyaltyTables();
     
+    // Create subscription plan and bundle tables if they don't exist
+    await createSubscriptionAndBundleTables();
+    
   } catch (error) {
     console.error("Error during migration:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create tables for subscription plans and bundles if they don't exist
+ */
+async function createSubscriptionAndBundleTables() {
+  try {
+    // Check if subscription_plans table exists
+    const tableCheckResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'subscription_plans'
+      );
+    `);
+    
+    if (!tableCheckResult.rows[0].exists) {
+      console.log("Creating subscription and bundle tables...");
+      
+      // Create subscription_plans table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS subscription_plans (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          price DOUBLE PRECISION NOT NULL,
+          frequency TEXT NOT NULL,
+          features TEXT[] NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      // Create subscriptions table with updated fields
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id SERIAL PRIMARY KEY,
+          plan_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          phone TEXT,
+          address TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active',
+          start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+          next_delivery TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      // Create bundles table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS bundles (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          price DOUBLE PRECISION NOT NULL,
+          juice_ids INTEGER[] NOT NULL,
+          image_url TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      console.log("Subscription and bundle tables created successfully");
+    } else {
+      console.log("Subscription and bundle tables already exist");
+    }
+  } catch (error) {
+    console.error("Error creating subscription and bundle tables:", error);
     throw error;
   }
 }
