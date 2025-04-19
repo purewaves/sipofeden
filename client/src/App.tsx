@@ -10,6 +10,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Subscribe from "@/pages/Subscribe";
 import Checkout from "@/pages/Checkout";
 import Loyalty from "@/pages/Loyalty";
+import JuiceChat from "@/pages/JuiceChat";
 import NotFound from "@/pages/not-found";
 
 // Admin Pages
@@ -47,6 +48,7 @@ function Router() {
           <Route path="/subscribe" component={Subscribe} />
           <Route path="/checkout" component={Checkout} />
           <Route path="/loyalty" component={Loyalty} />
+          <Route path="/juice-chat" component={JuiceChat} />
           
           {/* Admin Routes */}
           <Route path="/admin" component={AdminLogin} />

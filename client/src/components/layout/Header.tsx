@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, ShoppingCart } from "lucide-react";
+import { Menu, X, ShoppingCart, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui/logo";
 import { useCart } from "@/hooks/useCart";
@@ -42,6 +42,11 @@ const Header = () => {
             </Link>
             <Link href="/loyalty">
               <div className="font-medium hover:text-primary transition-colors cursor-pointer">Loyalty</div>
+            </Link>
+            <Link href="/juice-chat">
+              <div className="font-medium hover:text-primary transition-colors cursor-pointer flex items-center">
+                <MessageCircle className="h-4 w-4 mr-1" /> Juice Chat
+              </div>
             </Link>
           </nav>
           
