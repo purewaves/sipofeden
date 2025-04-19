@@ -142,7 +142,7 @@ const JuiceCategories = () => {
                 <div className="text-center py-12">
                   <p className="text-gray-500">No juices found in this category.</p>
                   <Link href="/shop">
-                    <a className="text-primary hover:underline mt-2 inline-block">View all juices</a>
+                    <div className="text-primary hover:underline mt-2 inline-block cursor-pointer">View all juices</div>
                   </Link>
                 </div>
               ) : (
@@ -158,9 +158,9 @@ const JuiceCategories = () => {
         
         <div className="text-center mt-12">
           <Link href="/shop">
-            <a className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90">
+            <div className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 cursor-pointer">
               View All Products
-            </a>
+            </div>
           </Link>
         </div>
       </div>
