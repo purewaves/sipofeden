@@ -36,7 +36,7 @@ const JuiceCard = ({ juice }: JuiceCardProps) => {
 
   return (
     <Link href={`/product/${juice.id}`}>
-      <a className="block">
+      <div className="block cursor-pointer">
         <Card className="bg-white rounded-lg overflow-hidden card-shadow transition-transform hover:scale-[1.02]">
           <img 
             src={juice.imageUrl} 
@@ -63,7 +63,7 @@ const JuiceCard = ({ juice }: JuiceCardProps) => {
             </div>
           </CardContent>
         </Card>
-      </a>
+      </div>
     </Link>
   );
 };

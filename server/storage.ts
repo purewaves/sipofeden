@@ -1,14 +1,16 @@
 import { 
   Juice, InsertJuice, 
-  CartItem, InsertCartItem, 
+  CartItem, InsertCartItem,
+  SubscriptionPlan, InsertSubscriptionPlan,
   Subscription, InsertSubscription, 
+  Bundle, InsertBundle,
   Admin, InsertAdmin, UpdateAdminProfile,
   Order, InsertOrder,
   OrderItem, InsertOrderItem,
   LoyaltyCustomer, InsertLoyaltyCustomer, UpdateLoyaltyPoints,
   LoyaltyReward, InsertLoyaltyReward,
   LoyaltyActivity, InsertLoyaltyActivity,
-  juices, cartItems, subscriptions, admins, orders, orderItems,
+  juices, cartItems, subscriptionPlans, subscriptions, bundles, admins, orders, orderItems,
   loyaltyCustomers, loyaltyRewards, loyaltyActivities
 } from "@shared/schema";
 import { db } from "./db";
@@ -33,9 +35,25 @@ export interface IStorage {
   removeFromCart(id: number): Promise<boolean>;
   clearCart(sessionId: string): Promise<boolean>;
   
-  // Subscription operations
+  // Subscription Plan operations
+  getAllSubscriptionPlans(): Promise<SubscriptionPlan[]>;
+  getSubscriptionPlanById(id: number): Promise<SubscriptionPlan | undefined>;
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  updateSubscriptionPlan(id: number, plan: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
+  deleteSubscriptionPlan(id: number): Promise<boolean>;
+  
+  // Bundle operations
+  getAllBundles(): Promise<Bundle[]>;
+  getBundleById(id: number): Promise<Bundle | undefined>;
+  createBundle(bundle: InsertBundle): Promise<Bundle>;
+  updateBundle(id: number, bundle: Partial<InsertBundle>): Promise<Bundle | undefined>;
+  deleteBundle(id: number): Promise<boolean>;
+  
+  // Subscription operations (customer subscriptions)
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   getSubscriptions(): Promise<Subscription[]>;
+  getSubscriptionById(id: number): Promise<Subscription | undefined>;
+  updateSubscriptionStatus(id: number, status: string): Promise<Subscription | undefined>;
   
   // Admin operations
   getAdminByUsername(username: string): Promise<Admin | undefined>;
@@ -200,7 +218,65 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   
-  // Subscription operations
+  // Subscription Plan operations
+  async getAllSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return db.select().from(subscriptionPlans);
+  }
+  
+  async getSubscriptionPlanById(id: number): Promise<SubscriptionPlan | undefined> {
+    const result = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+    return result[0];
+  }
+  
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const result = await db.insert(subscriptionPlans).values(plan).returning();
+    return result[0];
+  }
+  
+  async updateSubscriptionPlan(id: number, planUpdate: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const result = await db.update(subscriptionPlans)
+      .set(planUpdate)
+      .where(eq(subscriptionPlans.id, id))
+      .returning();
+    
+    return result[0];
+  }
+  
+  async deleteSubscriptionPlan(id: number): Promise<boolean> {
+    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id)).returning();
+    return result.length > 0;
+  }
+  
+  // Bundle operations
+  async getAllBundles(): Promise<Bundle[]> {
+    return db.select().from(bundles);
+  }
+  
+  async getBundleById(id: number): Promise<Bundle | undefined> {
+    const result = await db.select().from(bundles).where(eq(bundles.id, id));
+    return result[0];
+  }
+  
+  async createBundle(bundle: InsertBundle): Promise<Bundle> {
+    const result = await db.insert(bundles).values(bundle).returning();
+    return result[0];
+  }
+  
+  async updateBundle(id: number, bundleUpdate: Partial<InsertBundle>): Promise<Bundle | undefined> {
+    const result = await db.update(bundles)
+      .set(bundleUpdate)
+      .where(eq(bundles.id, id))
+      .returning();
+    
+    return result[0];
+  }
+  
+  async deleteBundle(id: number): Promise<boolean> {
+    const result = await db.delete(bundles).where(eq(bundles.id, id)).returning();
+    return result.length > 0;
+  }
+  
+  // Subscription operations (customer subscriptions)
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
     const result = await db.insert(subscriptions)
       .values(subscription)
@@ -211,6 +287,20 @@ export class DatabaseStorage implements IStorage {
   
   async getSubscriptions(): Promise<Subscription[]> {
     return db.select().from(subscriptions);
+  }
+  
+  async getSubscriptionById(id: number): Promise<Subscription | undefined> {
+    const result = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    return result[0];
+  }
+  
+  async updateSubscriptionStatus(id: number, status: string): Promise<Subscription | undefined> {
+    const result = await db.update(subscriptions)
+      .set({ status })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    
+    return result[0];
   }
   
   // Admin operations
