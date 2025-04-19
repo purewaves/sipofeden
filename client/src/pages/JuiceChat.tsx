@@ -198,7 +198,7 @@ const keywordMap: Record<string, string[]> = {
 };
 
 const JuiceChat: React.FC = () => {
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -214,10 +214,14 @@ const JuiceChat: React.FC = () => {
   const handleAddToCart = (juiceId: number) => {
     if (!juiceId) return;
     
-    addToCart(juiceId, 1);
+    // Find the juice in our data
+    const juice = juiceData.find(j => j.id === juiceId);
+    if (!juice) return;
+    
+    addItem(juice, 1);
     toast({
       title: "Added to cart",
-      description: "Your juice has been added to your cart.",
+      description: `${juice.name} has been added to your cart.`,
       variant: "default",
     });
   };
@@ -409,6 +413,18 @@ const JuiceChat: React.FC = () => {
                                   {tag}
                                 </Badge>
                               ))}
+                            </div>
+                            
+                            <div className="p-3 border-t border-gray-100 flex justify-between items-center">
+                              <div className="text-xs font-medium text-gray-700">₦{message.juice.price?.toLocaleString()}</div>
+                              <Button 
+                                onClick={() => message.juice?.id && handleAddToCart(message.juice.id)}
+                                size="sm"
+                                className="rounded-full bg-teal-500 hover:bg-teal-600"
+                              >
+                                <ShoppingCart className="h-3.5 w-3.5 mr-1" />
+                                Add to cart
+                              </Button>
                             </div>
                           </motion.div>
                         )}
