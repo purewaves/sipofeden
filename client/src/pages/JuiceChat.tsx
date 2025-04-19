@@ -15,6 +15,7 @@ import {
   Plus
 } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ const juiceData: JuiceRecommendation[] = [
     price: 2000
   },
   {
+    id: 3,
     name: "Melon Twist",
     image: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
     ingredients: "Watermelon + Apple + Mint + Lemon",
@@ -79,9 +81,11 @@ const juiceData: JuiceRecommendation[] = [
       "Reduces inflammation and aids digestion",
       "The mint and lemon add refreshing digestive benefits"
     ],
-    tags: ["hydration", "heart health", "refreshing", "digestion", "anti-inflammatory"]
+    tags: ["hydration", "heart health", "refreshing", "digestion", "anti-inflammatory"],
+    price: 2200
   },
   {
+    id: 4,
     name: "Liquid Sunset",
     image: "/assets/fae075af-fc0e-481c-8512-a972f44425b6-removebg-preview.png",
     ingredients: "Carrot + Turmeric + Pineapple + Ginger",
@@ -92,9 +96,11 @@ const juiceData: JuiceRecommendation[] = [
       "Pineapple contains bromelain which aids digestion",
       "Reduces inflammation"
     ],
-    tags: ["immunity", "anti-inflammatory", "digestion", "pain relief"]
+    tags: ["immunity", "anti-inflammatory", "digestion", "pain relief"],
+    price: 2300
   },
   {
+    id: 5,
     name: "Caribbean Magic",
     image: "/assets/ac4187c6-a203-4f78-852d-d28399fba46d-removebg-preview.png",
     ingredients: "Mango + Pineapple + Lemon",
@@ -104,9 +110,11 @@ const juiceData: JuiceRecommendation[] = [
       "The citrus fruits provide antioxidants that help fight free radicals",
       "Mango offers vision-supporting vitamin A"
     ],
-    tags: ["immunity", "digestion", "skin health", "antioxidants", "tropical"]
+    tags: ["immunity", "digestion", "skin health", "antioxidants", "tropical"],
+    price: 2400
   },
   {
+    id: 6,
     name: "Watermelon & Pineapple Juice",
     image: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
     ingredients: "Watermelon + Pineapple",
@@ -117,9 +125,11 @@ const juiceData: JuiceRecommendation[] = [
       "Supports heart health and digestion",
       "Bromelain from pineapple has anti-inflammatory properties"
     ],
-    tags: ["hydration", "heart health", "digestion", "electrolytes", "anti-inflammatory"]
+    tags: ["hydration", "heart health", "digestion", "electrolytes", "anti-inflammatory"],
+    price: 2100
   },
   {
+    id: 7,
     name: "Beetroot Mix",
     image: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
     ingredients: "Beetroot + Watermelon + Pineapple + Ginger",
@@ -129,9 +139,11 @@ const juiceData: JuiceRecommendation[] = [
       "Rich in vitamins A, C, and B6",
       "May support improved circulation, athletic performance, and detoxification"
     ],
-    tags: ["blood pressure", "athletic performance", "circulation", "detox", "anti-inflammatory"]
+    tags: ["blood pressure", "athletic performance", "circulation", "detox", "anti-inflammatory"],
+    price: 2600
   },
   {
+    id: 8,
     name: "Dragon's Breath",
     image: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
     ingredients: "Orange + Ginger + Pineapple + Apple",
@@ -140,7 +152,8 @@ const juiceData: JuiceRecommendation[] = [
       "Ginger provides warming anti-inflammatory action",
       "Pineapple provides bromelain which supports reduced inflammation and improved digestion"
     ],
-    tags: ["immunity", "anti-inflammatory", "digestion", "warming"]
+    tags: ["immunity", "anti-inflammatory", "digestion", "warming"],
+    price: 2500
   }
 ];
 
@@ -185,6 +198,8 @@ const keywordMap: Record<string, string[]> = {
 };
 
 const JuiceChat: React.FC = () => {
+  const { addToCart } = useCart();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -195,6 +210,17 @@ const JuiceChat: React.FC = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const handleAddToCart = (juiceId: number) => {
+    if (!juiceId) return;
+    
+    addToCart(juiceId, 1);
+    toast({
+      title: "Added to cart",
+      description: "Your juice has been added to your cart.",
+      variant: "default",
+    });
+  };
 
   useEffect(() => {
     scrollToBottom();
