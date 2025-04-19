@@ -80,10 +80,21 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
 
   const updateProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, data);
+      console.log("Updating product with data:", data);
+      const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, {
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        imageUrl: data.imageUrl,
+        category: data.category,
+        stock: data.stock,
+        featured: data.featured,
+        sku: data.sku
+      });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Product updated successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/juices'] });
       toast({
         title: "Product updated",
@@ -91,10 +102,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       });
       onClose();
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Failed to update product:", error);
       toast({
         title: "Error",
-        description: "Failed to update product",
+        description: "Failed to update product. Please check console for details.",
         variant: "destructive",
       });
     },
