@@ -81,7 +81,7 @@ const AdminHeader = () => {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/admin/dashboard">
+                  <Link href="/admin/profile">
                     <div className="cursor-pointer w-full flex items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile</span>
