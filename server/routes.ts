@@ -420,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/orders", async (req: Request, res: Response) => {
+  app.get("/api/admin/orders", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const orders = await storage.getOrders();
       res.json(orders);
@@ -429,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/orders/:id", async (req: Request, res: Response) => {
+  app.get("/api/admin/orders/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -447,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/orders/:id/status", async (req: Request, res: Response) => {
+  app.put("/api/admin/orders/:id/status", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
