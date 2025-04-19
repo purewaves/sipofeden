@@ -46,26 +46,28 @@ const Shop = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-4 mb-8">
-        <button
-          className={`px-4 py-2 rounded-full text-sm font-medium ${
-            category === "all" ? "bg-primary text-white" : "bg-white hover:bg-gray-100"
-          }`}
-          onClick={() => setCategory("all")}
-        >
-          All Juices
-        </button>
-        {categories.map((cat) => (
+      <div className="overflow-x-auto pb-2 mb-8">
+        <div className="flex flex-nowrap justify-start md:justify-center gap-2 md:gap-4 min-w-full">
           <button
-            key={cat}
-            className={`px-4 py-2 rounded-full text-sm font-medium ${
-              category === cat.toLowerCase() ? "bg-primary text-white" : "bg-white hover:bg-gray-100"
+            className={`px-3 py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap flex-shrink-0 ${
+              category === "all" ? "bg-primary text-white" : "bg-white hover:bg-gray-100 border border-gray-200"
             }`}
-            onClick={() => setCategory(cat.toLowerCase())}
+            onClick={() => setCategory("all")}
           >
-            {cat}
+            All Juices
           </button>
-        ))}
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              className={`px-3 py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap flex-shrink-0 ${
+                category === cat.toLowerCase() ? "bg-primary text-white" : "bg-white hover:bg-gray-100 border border-gray-200"
+              }`}
+              onClick={() => setCategory(cat.toLowerCase())}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Separator className="my-6" />

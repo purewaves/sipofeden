@@ -66,25 +66,27 @@ const SubscriptionForm = () => {
             <h3 className="font-heading text-xl font-semibold mb-4">Choose Your Juices</h3>
             
             <Tabs defaultValue="all" className="w-full" onValueChange={setCategory}>
-              <TabsList className="grid grid-cols-5 mb-4">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="immunity" className="flex items-center">
-                  <ShieldCheck className="w-3 h-3 mr-1" />
-                  Immunity
-                </TabsTrigger>
-                <TabsTrigger value="detox" className="flex items-center">
-                  <Droplets className="w-3 h-3 mr-1" />
-                  Detox
-                </TabsTrigger>
-                <TabsTrigger value="energy" className="flex items-center">
-                  <Zap className="w-3 h-3 mr-1" />
-                  Energy
-                </TabsTrigger>
-                <TabsTrigger value="wellness" className="flex items-center">
-                  <Heart className="w-3 h-3 mr-1" />
-                  Wellness
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto pb-1">
+                <TabsList className="grid grid-cols-5 mb-4 min-w-[500px]">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="immunity" className="flex items-center justify-center">
+                    <ShieldCheck className="w-3 h-3 mr-1" />
+                    <span className="whitespace-nowrap">Immunity</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="detox" className="flex items-center justify-center">
+                    <Droplets className="w-3 h-3 mr-1" />
+                    <span className="whitespace-nowrap">Detox</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="energy" className="flex items-center justify-center">
+                    <Zap className="w-3 h-3 mr-1" />
+                    <span className="whitespace-nowrap">Energy</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="wellness" className="flex items-center justify-center">
+                    <Heart className="w-3 h-3 mr-1" />
+                    <span className="whitespace-nowrap">Wellness</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
               
               <div className="mt-4">
                 {isLoading ? (
@@ -95,7 +97,7 @@ const SubscriptionForm = () => {
                 ) : filteredJuices.length === 0 ? (
                   <p className="text-center py-4 text-gray-500">No juices found in this category.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[450px] overflow-y-auto p-2">
                     {filteredJuices.map(juice => (
                       <div 
                         key={juice.id}
@@ -106,28 +108,28 @@ const SubscriptionForm = () => {
                         }`}
                         onClick={() => toggleJuiceSelection(juice.id)}
                       >
-                        <div className="flex-shrink-0 w-16 h-16 mr-3">
+                        <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 mr-2 sm:mr-3">
                           <img 
                             src={juice.imageUrl} 
                             alt={juice.name} 
                             className="w-full h-full object-cover rounded-md"
                           />
                         </div>
-                        <div className="flex-grow">
-                          <h4 className="font-medium">{juice.name}</h4>
-                          <div className="flex justify-between items-center mt-1">
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        <div className="flex-grow min-w-0">
+                          <h4 className="font-medium text-sm sm:text-base truncate">{juice.name}</h4>
+                          <div className="flex flex-wrap justify-between items-center mt-1 gap-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full whitespace-nowrap">
                               {juice.category}
                             </span>
-                            <span className="text-sm font-semibold">{formatCurrency(juice.price)}</span>
+                            <span className="text-xs sm:text-sm font-semibold">{formatCurrency(juice.price)}</span>
                           </div>
                         </div>
-                        <div className="ml-3">
+                        <div className="ml-2 sm:ml-3 flex-shrink-0">
                           <input 
                             type="checkbox" 
                             checked={selectedJuices.includes(juice.id)}
                             onChange={() => {}} // Needed to avoid React warning
-                            className="h-5 w-5 text-primary"
+                            className="h-4 w-4 sm:h-5 sm:w-5 text-primary"
                           />
                         </div>
                       </div>
