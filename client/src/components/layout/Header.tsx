@@ -40,6 +40,9 @@ const Header = () => {
             <Link href="/subscribe">
               <a className="font-medium hover:text-primary transition-colors">Subscribe</a>
             </Link>
+            <Link href="/loyalty">
+              <a className="font-medium hover:text-primary transition-colors">Loyalty</a>
+            </Link>
           </nav>
           
           {/* Cart and Mobile Menu */}
@@ -86,6 +89,11 @@ const Header = () => {
               <Link href="/subscribe">
                 <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
                   Subscribe
+                </a>
+              </Link>
+              <Link href="/loyalty">
+                <a className="font-medium hover:text-primary transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                  Loyalty
                 </a>
               </Link>
               <Link href="/admin">
