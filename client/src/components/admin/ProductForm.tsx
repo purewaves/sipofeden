@@ -106,10 +106,8 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await fetch('/api/admin/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      // Use apiRequest helper to ensure authentication headers are included
+      const response = await apiRequest("POST", "/api/admin/upload", formData, true);
       
       if (!response.ok) {
         throw new Error('Failed to upload image');
@@ -162,7 +160,7 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       return;
     }
     
-    // Show preview of the image
+    // Show local preview of the image before upload completes
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreviewImage(e.target?.result as string);
