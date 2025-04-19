@@ -910,9 +910,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/website-settings", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const settings = await storage.updateWebsiteSettings(req.body);
+      // Validate the request body with the schema
+      const validatedData = updateWebsiteSettingsSchema.parse(req.body);
+      
+      // Update the settings
+      const settings = await storage.updateWebsiteSettings(validatedData);
       res.status(200).json(settings);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid data provided", 
+          errors: error.errors 
+        });
+      }
       console.error("Error updating website settings:", error);
       res.status(500).json({ message: "Failed to update website settings" });
     }
