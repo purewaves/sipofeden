@@ -139,6 +139,13 @@ const AdminHeader = () => {
                 Subscriptions
               </Link>
               <Link 
+                href="/admin/profile"
+                className={`font-medium ${isActive("/admin/profile") ? "text-primary" : ""} hover:text-primary transition-colors`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Profile
+              </Link>
+              <Link 
                 href="/"
                 className="font-medium hover:text-primary transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}

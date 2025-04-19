@@ -79,6 +79,10 @@ export interface IStorage {
   redeemReward(rewardId: number): Promise<LoyaltyReward | undefined>;
   getLoyaltyTiers(): Promise<{ tier: string, minimumPoints: number, benefits: string[] }[]>;
   
+  // Website Settings operations
+  getWebsiteSettings(): Promise<WebsiteSettings>;
+  updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings>;
+  
   sessionStore: session.Store;
 }
 

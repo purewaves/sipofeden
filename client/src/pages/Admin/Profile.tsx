@@ -37,13 +37,13 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 const AdminProfile = () => {
   const { toast } = useToast();
-  const { user, updateUser } = useAuth();
+  const { admin, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
 
   // Fetch admin profile data
   const { data: adminData, isLoading } = useQuery<Admin>({
     queryKey: ["/api/admin/profile"],
-    enabled: !!user,
+    enabled: isAuthenticated,
   });
 
   // Profile form
@@ -83,7 +83,7 @@ const AdminProfile = () => {
         title: "Profile updated",
         description: "Your profile has been updated successfully"
       });
-      updateUser(data);
+      // Note: Auth state will be refreshed on next page load
     },
     onError: () => {
       toast({

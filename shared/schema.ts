@@ -281,3 +281,24 @@ export type InsertLoyaltyReward = z.infer<typeof insertLoyaltyRewardSchema>;
 
 export type LoyaltyActivity = typeof loyaltyActivities.$inferSelect;
 export type InsertLoyaltyActivity = z.infer<typeof insertLoyaltyActivitySchema>;
+
+// Website Settings
+export const websiteSettings = pgTable("website_settings", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().default("Sip of Eden"),
+  businessEmail: text("business_email").notNull().default("contact@sipofeden.com"),
+  phoneNumber: text("phone_number").notNull().default("+234 000 0000 000"),
+  address: text("address").notNull().default("Lagos, Nigeria"),
+  instagram: text("instagram").default("https://instagram.com/sipofeden"),
+  twitter: text("twitter").default("https://twitter.com/sipofeden"),
+  facebook: text("facebook").default("https://facebook.com/sipofeden"),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const updateWebsiteSettingsSchema = createInsertSchema(websiteSettings).omit({
+  id: true,
+  updatedAt: true
+});
+
+export type WebsiteSettings = typeof websiteSettings.$inferSelect;
+export type UpdateWebsiteSettings = z.infer<typeof updateWebsiteSettingsSchema>;
