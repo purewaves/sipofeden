@@ -218,7 +218,20 @@ const JuiceChat: React.FC = () => {
     const juice = juiceData.find(j => j.id === juiceId);
     if (!juice) return;
     
-    addItem(juice, 1);
+    // Convert our JuiceRecommendation to the format expected by the cart
+    const cartJuice = {
+      id: juice.id,
+      name: juice.name,
+      description: juice.ingredients,
+      price: juice.price || 0,
+      imageUrl: juice.image,
+      category: juice.tags[0] || "detox",
+      stock: 10, // Default stock value
+      featured: false,
+      sku: `JUICE-${juice.id}`
+    };
+    
+    addItem(cartJuice, 1);
     toast({
       title: "Added to cart",
       description: `${juice.name} has been added to your cart.`,
