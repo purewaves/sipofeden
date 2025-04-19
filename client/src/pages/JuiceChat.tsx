@@ -10,8 +10,11 @@ import {
   Zap,
   Droplet,
   Flame,
-  Apple
+  Apple,
+  ShoppingCart,
+  Plus
 } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
