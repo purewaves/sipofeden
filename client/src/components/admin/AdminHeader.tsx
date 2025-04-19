@@ -57,6 +57,11 @@ const AdminHeader = () => {
                 Orders
               </a>
             </Link>
+            <Link href="/admin/subscriptions">
+              <a className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : "hover:text-primary"} transition-colors`}>
+                Subscriptions
+              </a>
+            </Link>
           </nav>
           
           {/* Admin Controls */}
@@ -137,6 +142,14 @@ const AdminHeader = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Orders
+                </a>
+              </Link>
+              <Link href="/admin/subscriptions">
+                <a 
+                  className={`font-medium ${isActive("/admin/subscriptions") ? "text-primary" : ""} hover:text-primary transition-colors`} 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Subscriptions
                 </a>
               </Link>
               <Link href="/">
