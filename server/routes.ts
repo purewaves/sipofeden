@@ -26,75 +26,85 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Middleware to check if admin is authenticated
+  // Enhanced middleware to check if admin is authenticated
   const isAdminAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
     console.log("Checking admin authentication...");
-    
-    // For debugging: log session info
     console.log("Session ID:", req.sessionID);
-    console.log("Admin ID in session:", req.session.adminId);
+    console.log("Admin ID in session:", req.session?.adminId || "not set");
     
-    // First, check for session token cookie, which is an additional auth mechanism
-    const hasAdminCookie = req.headers.cookie && req.headers.cookie.includes('admin_authenticated=true');
+    // Check for admin cookie as a redundant auth mechanism
+    const cookies = req.headers.cookie || '';
+    const hasAdminCookie = cookies.includes('admin_authenticated=true');
     console.log("Admin cookie present:", hasAdminCookie);
     
-    // Check for session and admin ID
+    // Primary authentication check - Session with admin ID
     if (req.session && req.session.adminId) {
       try {
-        // Force session touch to update expiration
-        req.session.touch();
+        // Update last active timestamp for session tracking
+        req.session.lastActive = new Date().toISOString();
         
-        // Save the session to ensure it persists
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err) => {
-            if (err) {
-              console.error("Error saving session in auth middleware:", err);
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-        
-        // Verify admin exists in database to ensure session is valid
+        // First validate the session is working correctly by checking the admin record
         const admin = await storage.getAdminById(req.session.adminId);
         if (admin) {
-          console.log("Admin authenticated successfully:", admin.username);
+          console.log("Admin authentication success:", admin.username);
           
-          // Set response headers to help with session debugging
+          // Set response headers for monitoring and debugging
           res.setHeader('X-Admin-Auth', 'true');
+          res.setHeader('X-Admin-Username', admin.username);
+          res.setHeader('X-Session-ID', req.sessionID);
           
-          // Refresh admin cookie with each authenticated request
-          res.setHeader('Set-Cookie', [
-            `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24*7}`
-          ]);
+          // Set both cookies for redundant auth mechanisms
+          const cookieMaxAge = 60*60*24*7; // 1 week
+          const cookies = [
+            `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+          ];
           
-          // Admin found, proceed with the request
+          // Add secure flag in production
+          if (process.env.NODE_ENV === 'production') {
+            cookies[0] += '; Secure';
+          }
+          
+          res.setHeader('Set-Cookie', cookies);
+          
+          // Proceed with the request
           next();
+          
+          // After sending response, ensure session is saved (non-blocking)
+          req.session.touch();
+          req.session.save((err) => {
+            if (err) console.error("Non-blocking error saving session:", err);
+          });
+          
           return;
         }
         
-        console.log("Admin session exists but admin not found in database");
-        // Admin not found but session exists - clear invalid session
-        req.session.destroy((err) => {
-          if (err) console.error("Error destroying invalid session:", err);
+        console.log("Admin session exists but admin not found in database - possible data inconsistency");
+        // Destroy invalid session
+        await new Promise<void>((resolve) => {
+          req.session.destroy((err) => {
+            if (err) console.error("Error destroying invalid session:", err);
+            resolve();
+          });
         });
       } catch (error) {
-        console.error("Error verifying admin authentication:", error);
+        console.error("Error during admin authentication:", error);
+        // Continue to authentication failure
       }
     } else if (hasAdminCookie) {
-      // If session expired but admin cookie exists, send a special response
-      // This helps the client detect and handle expired sessions better
-      console.log("Admin cookie found but no valid session - session likely expired");
+      // Session expired but admin cookie exists, send special status code
+      console.log("Admin cookie found but no valid session - session expired");
       return res.status(440).json({ 
-        message: "Session expired",
-        code: "SESSION_EXPIRED"
+        message: "Your session has expired. Please log in again.",
+        code: "SESSION_EXPIRED" 
       });
     }
     
-    console.log("Admin authentication failed");
-    // If we reach here, authentication failed
-    res.status(401).json({ message: "Unauthorized - Please login to continue" });
+    console.log("Admin authentication failed - unauthorized");
+    // Authentication failed
+    res.status(401).json({ 
+      message: "You must be logged in to access this resource",
+      code: "AUTHENTICATION_REQUIRED"
+    });
   };
   
   // Set up storage for file uploads - use the public directory to ensure files are accessible in production
@@ -176,10 +186,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Admin upload route - same logic as the public one but with authentication
+  // Admin upload route with enhanced session persistence
   app.post('/api/admin/upload', isAdminAuthenticated, upload.single('image'), async (req: Request, res: Response) => {
     try {
       console.log('[ADMIN] File upload request received', req.file ? 'with file' : 'without file');
+      
+      // Important: Ensure session is properly touched and saved during file upload
+      // This prevents session expiration during long uploads
+      if (req.session && req.session.adminId) {
+        req.session.lastActive = new Date().toISOString();
+        // Pre-emptively save the session to prevent expiration
+        await new Promise<void>((resolve) => {
+          req.session.save((err) => {
+            if (err) console.error("Error saving session during file upload:", err);
+            resolve(); // Continue regardless of error
+          });
+        });
+      }
       
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -764,18 +787,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username and password are required" });
       }
       
-      // First, check if there's an existing session and regenerate it
-      // This prevents session fixation attacks and ensures a fresh session
-      if (req.session.adminId) {
-        console.log("Regenerating existing session during login");
+      // Clear any existing session completely and start fresh
+      // This is critical for avoiding corrupted sessions
+      if (req.session) {
+        console.log("Creating fresh session for login");
         await new Promise<void>((resolve) => {
           req.session.regenerate((err) => {
-            if (err) console.error("Error regenerating session:", err);
+            if (err) {
+              console.error("Error regenerating session:", err);
+            }
             resolve();
           });
         });
       }
       
+      // Verify admin credentials against database
       const admin = await storage.getAdminByUsername(username);
       console.log("Admin lookup result:", admin ? "found" : "not found");
       
@@ -786,71 +812,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Admin credentials verified, setting up session");
       
-      // Set up admin session with additional data for robustness
+      // Set up admin session with comprehensive data for robustness
       req.session.adminId = admin.id;
       req.session.adminUsername = admin.username;
       req.session.loginTime = new Date().toISOString();
+      req.session.lastActive = new Date().toISOString();
+      req.session.userAgent = req.headers['user-agent'] || 'unknown';
       
-      // Force session save to ensure it's stored immediately in database
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error("Error saving session:", err);
-            reject(new Error("Failed to save session"));
-          } else {
-            console.log("Session saved successfully, ID:", req.sessionID);
-            resolve();
-          }
-        });
-      });
+      // Force session save with multiple retries to ensure persistence
+      let saveAttempts = 0;
+      const maxAttempts = 3;
+      let sessionSaved = false;
       
-      console.log("Updating admin login status");
+      // Retry loop for session saving
+      while (saveAttempts < maxAttempts && !sessionSaved) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((err) => {
+              if (err) {
+                console.error(`Session save attempt ${saveAttempts + 1} failed:`, err);
+                reject(err);
+              } else {
+                console.log(`Session saved successfully on attempt ${saveAttempts + 1}, ID:`, req.sessionID);
+                sessionSaved = true;
+                resolve();
+              }
+            });
+          });
+        } catch (saveError) {
+          saveAttempts++;
+          console.error(`Retrying session save (${saveAttempts}/${maxAttempts})...`);
+          
+          // Small delay between retries
+          await new Promise(r => setTimeout(r, 50));
+        }
+      }
+      
+      if (!sessionSaved) {
+        console.error("Failed to save session after multiple attempts!");
+        // Continue with login but warn about potential session issues
+      }
+      
+      console.log("Updating admin login status in database");
       // Update last login time in separate try-catch for robustness
       try {
         await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
-        console.log("Admin login status updated");
+        console.log("Admin login status updated successfully");
       } catch (statusError) {
         console.error("Failed to update login status:", statusError);
         // Continue anyway as this is not critical for the login process
       }
       
-      // Don't return the password
+      // Remove password from response
       const { password: _, ...adminWithoutPassword } = admin;
       
-      // Critical: Set both cookies for redundant auth mechanism
-      const cookieMaxAge = 60*60*24*7; // 1 week
-      
-      // Enhanced cookie settings with security
+      // Set multiple redundant cookies for authentication resilience
+      const cookieMaxAge = 60*60*24*7; // 1 week in seconds
       const cookies = [
-        // Primary session cookie (handled by express-session)
+        // Explicit session ID cookie - helps with correlation
         `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`,
         
-        // Secondary auth cookie for redundancy
-        `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+        // Secondary authentication marker cookie
+        `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`,
+        
+        // Additional timestamp cookie to help with debugging
+        `login_time=${Date.now()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
       ];
       
-      // In production, add secure flag for HTTPS
+      // Add secure flag in production environment
       if (process.env.NODE_ENV === 'production') {
-        cookies[0] += '; Secure';
-        cookies[1] += '; Secure';
+        cookies.forEach((cookie, index) => {
+          cookies[index] = cookie + '; Secure';
+        });
       }
       
-      // Set enhanced cookies
+      // Set all cookies
       res.setHeader('Set-Cookie', cookies);
       
-      // Add auth header for debugging
+      // Set additional headers for debugging and monitoring
       res.setHeader('X-Admin-Auth', 'true');
+      res.setHeader('X-Session-ID', req.sessionID);
+      res.setHeader('X-Admin-Username', admin.username);
       
       console.log("Admin login successful, sending response");
       res.json({ 
         message: "Login successful",
         admin: adminWithoutPassword,
-        sessionId: req.sessionID // Include for debugging
+        sessionId: req.sessionID, // Include for debugging
+        timestamp: Date.now()
       });
     } catch (error) {
       console.error("Admin login error:", error);
       res.status(500).json({ 
-        message: "Login failed",
+        message: "Login failed - please try again",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

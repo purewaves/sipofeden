@@ -55,14 +55,14 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 
 // Image upload endpoint is now defined in routes.ts to avoid duplication
 
-// Session middleware with enhanced cross-tab persistence
+// Session middleware with enhanced cross-tab persistence and stability
 // Use a well-defined session secret to ensure cookies are consistently signed
 const SESSION_SECRET = process.env.SESSION_SECRET || 'sip-of-eden-secret-key-for-session-persistence';
 app.use(session({
   store: storage.sessionStore,
   secret: SESSION_SECRET,
   name: 'sip_eden_sid', // Custom session ID name for easier identification
-  resave: true, // IMPORTANT: Must be true for cross-tab persistence
+  resave: false, // IMPORTANT: Setting to false prevents race conditions
   rolling: true, // Reset cookie expiration on each request
   saveUninitialized: false, // Don't save empty sessions
   cookie: {
@@ -75,28 +75,45 @@ app.use(session({
   }
 }));
 
-// Add session persistence middleware
+// Add session persistence middleware with improved reliability
 app.use((req, res, next) => {
   // Keep track of the admin ID in the request object
-  // This helps maintain the session across tabs
-  if (req.session.adminId) {
-    // Store the admin ID in a local variable to access outside
-    const adminId = req.session.adminId;
+  if (req.session && req.session.adminId) {
+    // Update lastActive timestamp to help with session monitoring and timeouts
+    req.session.lastActive = new Date().toISOString();
     
-    // Force session touch on every admin request to extend cookie lifetime
-    // This helps with cross-tab persistence
+    // Set auth headers for debugging/monitoring
+    res.setHeader('X-Admin-Auth', 'true');
+    res.setHeader('X-Session-ID', req.sessionID);
+    
+    // Set auth cookies with every request to ensure they remain fresh
+    const cookieMaxAge = 60*60*24*7; // 1 week in seconds
+    const cookies = [
+      // Secondary auth cookie for redundancy
+      `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+    ];
+    
+    // In production, add secure flag
+    if (process.env.NODE_ENV === 'production') {
+      cookies[0] += '; Secure';
+    }
+    
+    res.setHeader('Set-Cookie', cookies);
+  }
+  
+  // Continue with the request - don't wait for save to complete
+  next();
+  
+  // After sending the response, ensure session is properly saved
+  // This prevents blocking the request while saving the session
+  if (req.session && req.session.adminId) {
     req.session.touch();
     req.session.save((err) => {
       if (err) {
-        console.error("Error saving session:", err);
+        console.error("Error saving session (non-blocking):", err);
       }
     });
-    
-    // Add a response header to indicate admin is authenticated
-    // This helps with debugging session issues
-    res.setHeader('X-Admin-Auth', 'true');
   }
-  next();
 });
 
 // Logging middleware
