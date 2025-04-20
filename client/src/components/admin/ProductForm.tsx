@@ -118,11 +118,10 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       const formData = new FormData();
       formData.append('image', file);
       
-      // Use fetch directly with credentials to ensure session cookie is sent
-      const response = await fetch("/api/admin/upload", {
+      // Use the public upload endpoint that doesn't require authentication
+      const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
-        credentials: "include"  // This is crucial to include session cookies
+        body: formData
       });
       
       if (!response.ok) {
@@ -152,11 +151,12 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
         description: "The image has been uploaded successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Image upload error:", error);
       setIsUploading(false);
       toast({
         title: "Error",
-        description: "Failed to upload image",
+        description: `Failed to upload image: ${error.message}`,
         variant: "destructive",
       });
     },

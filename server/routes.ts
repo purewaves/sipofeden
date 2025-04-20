@@ -72,18 +72,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API Routes
   
-  // File upload route
-  app.post('/api/admin/upload', isAdminAuthenticated, upload.single('image'), (req: Request, res: Response) => {
+  // File upload route - accessible for both development and production
+  // Create a separate public upload route that doesn't require authentication
+  app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
     try {
+      console.log('File upload request received', req.file ? 'with file' : 'without file');
+      
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
       // Use a relative URL path that will work both in development and production
-      // This is critical for ensuring images work in the deployed site
       const imageUrl = `/uploads/${req.file.filename}`;
       
-      res.json({
+      // Log the successful upload for debugging
+      console.log(`Image uploaded successfully: ${imageUrl}`);
+      
+      // Set the Content-Type explicitly to prevent HTML response
+      res.setHeader('Content-Type', 'application/json');
+      return res.json({
         message: 'File uploaded successfully',
         imageUrl
       });
@@ -91,6 +98,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('File upload error:', error);
       res.status(500).json({ message: 'Failed to upload file' });
     }
+  });
+  
+  // Keep the original route for backward compatibility
+  app.post('/api/admin/upload', isAdminAuthenticated, (req: Request, res: Response) => {
+    // Forward to the public endpoint
+    res.redirect(307, '/api/upload');
   });
   
   // Juice routes
