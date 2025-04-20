@@ -33,10 +33,13 @@ const upload = multer({
   }
 });
 
-// Extend the session interface to include adminId
+// Extend the session interface to include admin authentication fields
 declare module 'express-session' {
   interface SessionData {
     adminId?: number;
+    adminUsername?: string;
+    loginTime?: string;
+    lastActive?: string;
   }
 }
 
