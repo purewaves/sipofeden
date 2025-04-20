@@ -9,21 +9,39 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, isValidating, validateSession } = useAuth();
   const [location, navigate] = useLocation();
+  
+  // Validate session on component mount and when location changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Validate session with server on each admin page navigation
+      validateSession().catch(console.error);
+    }
+  }, [validateSession, location, isAuthenticated]);
   
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isValidating) {
       navigate("/admin");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isValidating, navigate]);
   
   // Handle logout
   const handleLogout = () => {
     logout();
     navigate("/admin");
   };
+  
+  // If validating or not authenticated, show loading spinner
+  if (isValidating) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <p className="ml-2">Validating session...</p>
+      </div>
+    );
+  }
   
   // If not authenticated, don't render the layout
   if (!isAuthenticated) {

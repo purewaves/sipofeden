@@ -856,6 +856,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin logout endpoint
+  app.post("/api/admin/logout", async (req: Request, res: Response) => {
+    console.log("Admin logout requested");
+    
+    if (req.session.adminId) {
+      console.log(`Logging out admin ID ${req.session.adminId}`);
+      
+      // Clear admin session
+      try {
+        // Destroy the session
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) {
+              console.error("Error destroying session during logout:", err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+        
+        // Clear cookies
+        res.clearCookie('sip_eden_sid');
+        res.clearCookie('admin_authenticated');
+        
+        console.log("Admin logout successful");
+        res.status(200).json({ message: "Logged out successfully" });
+      } catch (error) {
+        console.error("Error during logout:", error);
+        res.status(500).json({ message: "Logout failed" });
+      }
+    } else {
+      console.log("No active session to log out");
+      res.status(200).json({ message: "No active session" });
+    }
+  });
+  
   
   // Admin profile routes with enhanced session persistence
   app.get("/api/admin/profile", isAdminAuthenticated, async (req: Request, res: Response) => {

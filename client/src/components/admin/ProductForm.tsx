@@ -198,11 +198,29 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       formData.append('image', file);
       
       try {
-        // Use the public upload endpoint that doesn't require authentication
-        const response = await fetch("/api/upload", {
+        // Use the admin-specific upload endpoint with authentication
+        const response = await fetch("/api/admin/upload", {
           method: "POST",
-          body: formData
+          body: formData,
+          credentials: "include" // Important for session cookies
         });
+        
+        // Handle session expiration explicitly
+        if (response.status === 440 || response.status === 401) {
+          console.error("Authentication error during upload. Status:", response.status);
+          const errorText = await response.text();
+          let errorMessage = "Session expired";
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            // If not JSON, use the raw text or default message
+            errorMessage = errorText || errorMessage;
+          }
+          
+          throw new Error(`Authentication error: ${errorMessage}`);
+        }
         
         if (!response.ok) {
           throw new Error('Failed to upload image: ' + await response.text());
