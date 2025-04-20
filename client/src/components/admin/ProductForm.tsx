@@ -136,15 +136,19 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       setPreviewImage(data.imageUrl);
       setIsUploading(false);
       
-      // If editing mode, automatically update the product with the new image
+      // If editing mode, don't automatically update the product with the new image
+      // Just set the form value and let the user click update
+      // This prevents issues with very large Base64 image URLs
+      /* 
       if (isEditing && initialData) {
         const updatedData = {
           ...initialData,
           imageUrl: data.imageUrl,
-          featured: initialData.featured || false  // Ensure featured is always boolean
+          featured: initialData.featured || false
         };
         updateProductMutation.mutate(updatedData);
       }
+      */
       
       toast({
         title: "Image uploaded",
