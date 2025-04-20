@@ -2,10 +2,12 @@ import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import { Request } from 'express';
 
-// Initialize Cloudinary with environment variables
-// CLOUDINARY_URL is expected to be in the format: cloudinary://api_key:api_secret@cloud_name
-// This automatically sets up the configuration
-cloudinary.config();
+// Initialize Cloudinary with direct configuration
+cloudinary.config({
+  cloud_name: 'dmwypgggc',
+  api_key: '781269855996276',
+  api_secret: '1nhaVSQQUc-aMi7ayhLJS75DiJw'
+});
 
 // Configure memory storage for multer (files stored in memory before upload to Cloudinary)
 const storage = multer.memoryStorage();

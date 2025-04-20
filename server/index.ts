@@ -6,7 +6,40 @@ import { runMigrations } from "./migrations";
 import session from "express-session";
 import { storage } from "./storage";
 import path from "path";
-import { upload, uploadToCloudinary } from "./cloudinary";
+import multer from "multer";
+import fs from "fs";
+
+// Ensure the upload directory exists
+const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ 
+  storage: storage_config,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Extend the session interface to include adminId
 declare module 'express-session' {
@@ -24,8 +57,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Register the main file upload endpoint before everything else using Cloudinary
-app.post('/api/upload', upload.single('image'), async (req, res) => {
+// Register the main file upload endpoint before everything else
+app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     console.log('File upload request received at /api/upload', req.file ? 'with file' : 'without file');
     
@@ -33,23 +66,22 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
-    // Upload to Cloudinary instead of local storage
-    const result = await uploadToCloudinary(req.file.buffer);
-    const imageUrl = result.url;
+    // Use a relative URL path that will work both in development and production
+    const imageUrl = `/uploads/${req.file.filename}`;
     
     // Log the successful upload for debugging
-    log(`Image uploaded successfully to Cloudinary: ${imageUrl}`, 'upload');
+    log(`Image uploaded successfully: ${imageUrl}`, 'upload');
     
     // Set the Content-Type explicitly to prevent HTML response
     res.setHeader('Content-Type', 'application/json');
     return res.json({
       message: 'File uploaded successfully',
-      imageUrl,
-      public_id: result.public_id
+      imageUrl
     });
-  } catch (error) {
-    console.error('File upload error:', error);
-    res.status(500).json({ message: 'Failed to upload file', error: error.message });
+  } catch (err) {
+    console.error('File upload error:', err);
+    const error = err as Error;
+    res.status(500).json({ message: 'Failed to upload file', error: error.message || 'Unknown error' });
   }
 });
 
