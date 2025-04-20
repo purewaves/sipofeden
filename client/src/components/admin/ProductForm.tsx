@@ -118,11 +118,15 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       const formData = new FormData();
       formData.append('image', file);
       
-      // Use apiRequest helper to ensure authentication headers are included
-      const response = await apiRequest("POST", "/api/admin/upload", formData, true);
+      // Use fetch directly with credentials to ensure session cookie is sent
+      const response = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include"  // This is crucial to include session cookies
+      });
       
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        throw new Error('Failed to upload image: ' + await response.text());
       }
       
       return response.json();
