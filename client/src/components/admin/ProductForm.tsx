@@ -91,16 +91,34 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       console.log("Updating product with data:", logData);
       
       try {
-        const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, {
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          imageUrl: data.imageUrl,
-          category: data.category,
-          stock: data.stock,
-          featured: data.featured,
-          sku: data.sku
-        });
+        // Make a simplified request body with just the fields that have values
+        const requestBody: any = {};
+        if (data.name) requestBody.name = data.name;
+        if (data.description) requestBody.description = data.description;
+        if (data.price !== undefined) requestBody.price = data.price;
+        if (data.imageUrl) requestBody.imageUrl = data.imageUrl;
+        if (data.category) requestBody.category = data.category;
+        if (data.stock !== undefined) requestBody.stock = data.stock;
+        if (data.featured !== undefined) requestBody.featured = data.featured;
+        if (data.sku) requestBody.sku = data.sku;
+        
+        console.log("Sending request body:", 
+          {...requestBody, imageUrl: requestBody.imageUrl ? 'Present (truncated)' : 'Not present'});
+        
+        const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, requestBody);
+        
+        if (!response.ok) {
+          // Try to get error details
+          let errorText = await response.text();
+          try {
+            // Attempt to parse as JSON
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.message || 'Update failed with status: ' + response.status);
+          } catch (parseError) {
+            // If not JSON, use the raw text
+            throw new Error('Update failed: ' + errorText || response.statusText || response.status);
+          }
+        }
         
         return await response.json();
       } catch (err) {
@@ -109,7 +127,7 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       }
     },
     onSuccess: (data) => {
-      console.log("Product updated successfully");
+      console.log("Product updated successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/juices'] });
       toast({
         title: "Product updated",
@@ -117,12 +135,21 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       });
       onClose();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Failed to update product:", error);
+      
+      // Attempt to display a more helpful error message
+      let errorMessage = "Failed to update product.";
+      
+      if (error.message) {
+        errorMessage += ` ${error.message}`;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to update product. Please check console for details.",
+        title: "Update Error",
+        description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       });
     },
   });
@@ -189,11 +216,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       return;
     }
     
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB - updated to match server)
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Image size should be less than 5MB",
+        description: "Image size should be less than 10MB",
         variant: "destructive",
       });
       return;
