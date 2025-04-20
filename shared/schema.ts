@@ -25,6 +25,9 @@ export const insertJuiceSchema = createInsertSchema(juices).omit({
   id: true
 });
 
+// Dynamic types for runtime use (not stored in database)
+// These will be added by the application logic at runtime
+
 // Cart items
 export const cartItems = pgTable("cart_items", {
   id: serial("id").primaryKey(),
@@ -178,7 +181,9 @@ export const updateAdminPasswordSchema = z.object({
 });
 
 // Schema types
-export type Juice = typeof juices.$inferSelect;
+export type Juice = typeof juices.$inferSelect & {
+  calculatedSales?: number; // Optional runtime-only property for analytics
+};
 export type InsertJuice = z.infer<typeof insertJuiceSchema>;
 
 export type CartItem = typeof cartItems.$inferSelect;

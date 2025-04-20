@@ -28,16 +28,53 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware to check if admin is authenticated
   const isAdminAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+    console.log("Checking admin authentication...");
+    
+    // For debugging: log session info
+    console.log("Session ID:", req.sessionID);
+    console.log("Admin ID in session:", req.session.adminId);
+    
+    // First, check for session token cookie, which is an additional auth mechanism
+    const hasAdminCookie = req.headers.cookie && req.headers.cookie.includes('admin_authenticated=true');
+    console.log("Admin cookie present:", hasAdminCookie);
+    
     // Check for session and admin ID
     if (req.session && req.session.adminId) {
       try {
+        // Force session touch to update expiration
+        req.session.touch();
+        
+        // Save the session to ensure it persists
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) {
+              console.error("Error saving session in auth middleware:", err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+        
         // Verify admin exists in database to ensure session is valid
         const admin = await storage.getAdminById(req.session.adminId);
         if (admin) {
+          console.log("Admin authenticated successfully:", admin.username);
+          
+          // Set response headers to help with session debugging
+          res.setHeader('X-Admin-Auth', 'true');
+          
+          // Refresh admin cookie with each authenticated request
+          res.setHeader('Set-Cookie', [
+            `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24*7}`
+          ]);
+          
           // Admin found, proceed with the request
           next();
           return;
         }
+        
+        console.log("Admin session exists but admin not found in database");
         // Admin not found but session exists - clear invalid session
         req.session.destroy((err) => {
           if (err) console.error("Error destroying invalid session:", err);
@@ -45,8 +82,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error verifying admin authentication:", error);
       }
+    } else if (hasAdminCookie) {
+      // If session expired but admin cookie exists, send a special response
+      // This helps the client detect and handle expired sessions better
+      console.log("Admin cookie found but no valid session - session likely expired");
+      return res.status(440).json({ 
+        message: "Session expired",
+        code: "SESSION_EXPIRED"
+      });
     }
     
+    console.log("Admin authentication failed");
     // If we reach here, authentication failed
     res.status(401).json({ message: "Unauthorized - Please login to continue" });
   };
@@ -710,54 +756,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin authentication
   app.post("/api/admin/login", async (req: Request, res: Response) => {
     try {
+      console.log("Admin login attempt received");
       const { username, password } = req.body;
       
       if (!username || !password) {
+        console.log("Login rejected: missing username or password");
         return res.status(400).json({ message: "Username and password are required" });
       }
       
+      // First, check if there's an existing session and regenerate it
+      // This prevents session fixation attacks and ensures a fresh session
+      if (req.session.adminId) {
+        console.log("Regenerating existing session during login");
+        await new Promise<void>((resolve) => {
+          req.session.regenerate((err) => {
+            if (err) console.error("Error regenerating session:", err);
+            resolve();
+          });
+        });
+      }
+      
       const admin = await storage.getAdminByUsername(username);
+      console.log("Admin lookup result:", admin ? "found" : "not found");
       
       if (!admin || admin.password !== password) {
+        console.log("Login rejected: invalid credentials");
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // Set up admin session
-      req.session.adminId = admin.id;
+      console.log("Admin credentials verified, setting up session");
       
-      // Force session save to ensure it's stored immediately
-      req.session.save((err) => {
-        if (err) {
-          console.error("Error saving session:", err);
-          return res.status(500).json({ message: "Failed to save session" });
-        }
+      // Set up admin session with additional data for robustness
+      req.session.adminId = admin.id;
+      req.session.adminUsername = admin.username;
+      req.session.loginTime = new Date().toISOString();
+      
+      // Force session save to ensure it's stored immediately in database
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            reject(new Error("Failed to save session"));
+          } else {
+            console.log("Session saved successfully, ID:", req.sessionID);
+            resolve();
+          }
+        });
+      });
+      
+      console.log("Updating admin login status");
+      // Update last login time in separate try-catch for robustness
+      try {
+        await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
+        console.log("Admin login status updated");
+      } catch (statusError) {
+        console.error("Failed to update login status:", statusError);
+        // Continue anyway as this is not critical for the login process
+      }
+      
+      // Don't return the password
+      const { password: _, ...adminWithoutPassword } = admin;
+      
+      // Critical: Set both cookies for redundant auth mechanism
+      const cookieMaxAge = 60*60*24*7; // 1 week
+      
+      // Enhanced cookie settings with security
+      const cookies = [
+        // Primary session cookie (handled by express-session)
+        `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`,
         
-        // Update last login time
-        storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false)
-          .then(() => {
-            // Don't return the password
-            const { password: _, ...adminWithoutPassword } = admin;
-            
-            // Set a more specific session cookie if needed in development
-            if (process.env.NODE_ENV !== 'production') {
-              res.setHeader('Set-Cookie', [
-                `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24*7}`
-              ]);
-            }
-            
-            res.json({ 
-              message: "Login successful",
-              admin: adminWithoutPassword
-            });
-          })
-          .catch((error) => {
-            console.error("Failed to update login status:", error);
-            res.status(500).json({ message: "Login partially failed" });
-          });
+        // Secondary auth cookie for redundancy
+        `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+      ];
+      
+      // In production, add secure flag for HTTPS
+      if (process.env.NODE_ENV === 'production') {
+        cookies[0] += '; Secure';
+        cookies[1] += '; Secure';
+      }
+      
+      // Set enhanced cookies
+      res.setHeader('Set-Cookie', cookies);
+      
+      // Add auth header for debugging
+      res.setHeader('X-Admin-Auth', 'true');
+      
+      console.log("Admin login successful, sending response");
+      res.json({ 
+        message: "Login successful",
+        admin: adminWithoutPassword,
+        sessionId: req.sessionID // Include for debugging
       });
     } catch (error) {
       console.error("Admin login error:", error);
-      res.status(500).json({ message: "Login failed" });
+      res.status(500).json({ 
+        message: "Login failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
   
