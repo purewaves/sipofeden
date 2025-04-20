@@ -220,45 +220,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes - Juice management
   app.post("/api/admin/juices", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const validatedData = insertJuiceSchema.parse(req.body);
+      console.log("Admin juice creation request received");
+      console.log("Request body:", req.body);
+      
+      // Validate data - if validation fails, try to parse individual fields
+      let validatedData;
+      try {
+        validatedData = insertJuiceSchema.parse(req.body);
+        console.log("Data validation passed for new juice");
+      } catch (validationError) {
+        console.error("Initial validation failed for new juice:", validationError);
+        
+        // Build a cleaner object with only defined properties
+        const cleanData: any = {};
+        Object.keys(req.body).forEach(key => {
+          if (req.body[key] !== undefined && req.body[key] !== null && req.body[key] !== '') {
+            cleanData[key] = req.body[key];
+          }
+        });
+        
+        console.log("Trying with clean data for new juice:", cleanData);
+        
+        // Try with cleaned data
+        validatedData = insertJuiceSchema.parse(cleanData);
+        console.log("Validation passed with cleaned data for new juice");
+      }
+      
       const newJuice = await storage.createJuice(validatedData);
+      console.log("New juice created successfully:", newJuice.id, newJuice.name);
+      
       res.status(201).json(newJuice);
     } catch (error) {
+      console.error("Error creating juice:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid juice data", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Invalid juice data, please check form fields", 
+          errors: error.errors,
+          requested: req.body 
+        });
       }
-      res.status(500).json({ message: "Failed to create juice" });
+      res.status(500).json({ 
+        message: "Failed to create juice",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
   app.put("/api/admin/juices/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log("Admin juice update request received");
+      
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid juice ID" });
       }
       
-      // Validate partial update
-      const validatedData = insertJuiceSchema.partial().parse(req.body);
+      console.log("Request body:", req.body);
+      
+      // Get current juice data for fallback/verification
+      const currentJuice = await storage.getJuiceById(id);
+      if (!currentJuice) {
+        return res.status(404).json({ message: "Juice not found" });
+      }
+      
+      console.log("Current juice found:", currentJuice.id, currentJuice.name);
+      
+      // Validate partial update - if validation fails, try to parse individual fields
+      let validatedData;
+      try {
+        validatedData = insertJuiceSchema.partial().parse(req.body);
+        console.log("Data validation passed");
+      } catch (validationError) {
+        console.error("Initial validation failed:", validationError);
+        // Build a cleaner object with only defined properties
+        const cleanData: any = {};
+        Object.keys(req.body).forEach(key => {
+          if (req.body[key] !== undefined && req.body[key] !== null && req.body[key] !== '') {
+            cleanData[key] = req.body[key];
+          }
+        });
+        
+        console.log("Trying with clean data:", cleanData);
+        
+        // Try with cleaned data
+        validatedData = insertJuiceSchema.partial().parse(cleanData);
+        console.log("Validation passed with cleaned data");
+      }
       
       // Log the update for debugging
       console.log(`Updating juice ${id} with data:`, validatedData);
       
+      // Ensure the imageUrl is preserved if not provided in update
+      if (!validatedData.imageUrl && currentJuice.imageUrl) {
+        console.log("Preserving existing image URL");
+        validatedData.imageUrl = currentJuice.imageUrl;
+      }
+      
       const updatedJuice = await storage.updateJuice(id, validatedData);
       if (!updatedJuice) {
-        return res.status(404).json({ message: "Juice not found" });
+        return res.status(404).json({ message: "Juice not found during update" });
       }
       
       // Get the fresh data to ensure we have the latest
       const freshJuice = await storage.getJuiceById(id);
+      console.log("Update successful, returning updated juice");
       
       res.json(freshJuice || updatedJuice);
     } catch (error) {
       console.error("Error updating juice:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid juice data", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Invalid juice data, please check form fields", 
+          errors: error.errors,
+          requested: req.body 
+        });
       }
-      res.status(500).json({ message: "Failed to update juice" });
+      res.status(500).json({ 
+        message: "Failed to update juice",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
