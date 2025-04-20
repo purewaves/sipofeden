@@ -1,19 +1,72 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
+/**
+ * Enhanced error handling for API responses
+ * Attempts to parse error messages from response body
+ */
+async function handleResponseError(res: Response): Promise<never> {
+  try {
+    // Try to parse as JSON first
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const errorData = await res.json();
+        if (errorData.message) {
+          throw new Error(`${res.status}: ${errorData.message}`);
+        } else if (errorData.error) {
+          throw new Error(`${res.status}: ${errorData.error}`);
+        }
+      } catch (jsonError) {
+        // Fall back to text if JSON parsing fails
+      }
+    }
+    
+    // If not JSON or JSON parsing failed, get text
+    const text = await res.text() || res.statusText;
+    
+    // Handle session expired specifically
+    if (res.status === 440) {
+      throw new Error('Session expired. Please log in again.');
+    } else if (res.status === 401) {
+      throw new Error('Authentication required. Please log in.');
+    }
+    
     throw new Error(`${res.status}: ${text}`);
+  } catch (error) {
+    if (error instanceof Error) {
+      // Add status to error object
+      (error as any).status = res.status;
+      throw error;
+    }
+    // Fallback error
+    const fallbackError = new Error(`${res.status}: Request failed`);
+    (fallbackError as any).status = res.status;
+    throw fallbackError;
   }
 }
 
+/**
+ * Helper to check if response is OK or throw appropriate error
+ */
+async function throwIfResNotOk(res: Response) {
+  if (!res.ok) {
+    await handleResponseError(res);
+  }
+}
+
+/**
+ * Enhanced API request with robust error handling and session management
+ */
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
   isFormData: boolean = false,
 ): Promise<Response> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'X-Requested-With': 'XMLHttpRequest', // Help server identify XHR requests
+  };
+  
   let body: any = undefined;
   
   if (data) {
@@ -28,46 +81,94 @@ export async function apiRequest(
     }
   }
   
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-    credentials: "include",
-  });
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body,
+      credentials: "include", // Always include credentials for session cookies
+    });
+    
+    // Special handling for session expiration (status code 440)
+    if (res.status === 440) {
+      const error = new Error('Session expired. Please log in again.');
+      (error as any).status = 440;
+      throw error;
+    }
 
-  await throwIfResNotOk(res);
-  return res;
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    console.error(`API request error (${method} ${url}):`, error);
+    throw error;
+  }
 }
 
-type UnauthorizedBehavior = "returnNull" | "throw";
+type UnauthorizedBehavior = "returnNull" | "throw" | "redirect";
+
+/**
+ * Enhanced query function with improved session management
+ */
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(queryKey[0] as string, {
+        credentials: "include",
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        }
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      // Handle session expiration (440) and auth failures (401)
+      if (res.status === 440 || res.status === 401) {
+        if (unauthorizedBehavior === "returnNull") {
+          return null;
+        } else if (unauthorizedBehavior === "redirect") {
+          // Check if we're not already on the admin page to prevent redirect loops
+          if (!window.location.pathname.includes('/admin')) {
+            window.location.href = '/admin';
+          }
+          return null;
+        } else {
+          await handleResponseError(res);
+        }
+      }
+
+      await throwIfResNotOk(res);
+      return await res.json();
+    } catch (error) {
+      console.error(`Query error (${queryKey[0]}):`, error);
+      throw error;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
+/**
+ * Configured QueryClient with improved error handling 
+ * and session management
+ */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnWindowFocus: true, // Enable to detect session changes
+      refetchOnMount: true,
+      staleTime: 30000, // 30 seconds - balance between performance and freshness
+      retry: (failureCount, error: any) => {
+        // Don't retry auth errors
+        if (error && (error.status === 401 || error.status === 440 || error.status === 403)) {
+          return false;
+        }
+        // Retry network/timeout errors
+        return failureCount < 2;
+      },
+      retryDelay: 1000, // 1 second between retries
     },
     mutations: {
-      retry: false,
+      retry: false, // Don't retry mutations to avoid duplicate operations
     },
   },
 });

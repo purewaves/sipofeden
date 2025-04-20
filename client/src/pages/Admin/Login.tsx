@@ -37,26 +37,66 @@ const AdminLogin = () => {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
-      const response = await apiRequest("POST", "/api/admin/login", data);
-      return response.json();
+      try {
+        // Use fetch directly to better handle session cookie processing
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Important for cookies
+          body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+          // Handle specific error codes
+          if (response.status === 401) {
+            throw new Error('Invalid username or password');
+          } else if (response.status === 429) {
+            throw new Error('Too many login attempts. Please try again later.');
+          } else {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.message || `Login failed (${response.status})`);
+          }
+        }
+        
+        return await response.json();
+      } catch (error) {
+        // Re-throw to be handled by onError
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      if (!data || !data.admin) {
+        setError("Invalid response from server");
+        return;
+      }
+      
+      // Capture session ID for debugging if provided
+      if (data.sessionId) {
+        console.log("Login successful with session ID:", data.sessionId);
+      }
+      
+      // Store admin data and set authenticated state
       login(data.admin);
+      
       toast({
         title: "Login successful",
         description: "Welcome to the admin dashboard",
       });
       
-      // Use setTimeout to ensure the state updates before navigation
+      // Use setTimeout to ensure state updates before navigation
+      // Increased timeout to allow session to be properly established
       setTimeout(() => {
         navigate("/admin/dashboard");
-      }, 50);
+      }, 200);
     },
-    onError: () => {
-      setError("Invalid username or password");
+    onError: (error: Error) => {
+      console.error("Login error:", error);
+      setError(error.message || "Invalid username or password");
       toast({
         title: "Login failed",
-        description: "Invalid username or password",
+        description: error.message || "Authentication failed. Please check your credentials.",
         variant: "destructive",
       });
     },
