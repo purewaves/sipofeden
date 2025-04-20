@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
@@ -35,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
   
-  // Set up storage for file uploads
+  // Set up storage for file uploads - use the public directory to ensure files are accessible in production
   const uploadDir = path.join(process.cwd(), 'public', 'uploads');
   
   // Create uploads directory if it doesn't exist
@@ -66,6 +66,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cb(null, true);
     }
   });
+
+  // Ensure the uploads directory is served statically
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
   
   // API Routes
   
@@ -76,11 +79,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Return the full URL for the uploaded file
-      // Make it an absolute URL that includes the hostname
-      const host = req.get('host');
-      const protocol = req.protocol;
-      const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      // Use a relative URL path that will work both in development and production
+      // This is critical for ensuring images work in the deployed site
+      const imageUrl = `/uploads/${req.file.filename}`;
       
       res.json({
         message: 'File uploaded successfully',
