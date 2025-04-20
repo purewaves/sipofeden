@@ -9,6 +9,17 @@ import path from "path";
 import multer from "multer";
 import fs from "fs";
 
+// Extend the session data interface to include our custom fields
+declare module 'express-session' {
+  interface SessionData {
+    adminId?: number;
+    adminUsername?: string;
+    loginTime?: string;
+    lastActive?: string;
+    userAgent?: string;
+  }
+}
+
 // Ensure the upload directory exists
 const uploadDir = path.join(process.cwd(), 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -33,15 +44,7 @@ const upload = multer({
   }
 });
 
-// Extend the session interface to include admin authentication fields
-declare module 'express-session' {
-  interface SessionData {
-    adminId?: number;
-    adminUsername?: string;
-    loginTime?: string;
-    lastActive?: string;
-  }
-}
+// This comment just marks where the previous duplicate declaration was removed
 
 // Create Express app
 const app = express();

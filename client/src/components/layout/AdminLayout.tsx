@@ -1,23 +1,58 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Home, Package, ShoppingCart, Users, BarChart3, LogOut, CalendarRange } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  const { isAuthenticated, logout, isValidating, validateSession } = useAuth();
+  const { isAuthenticated, logout, isValidating, validateSession, refreshSession } = useAuth();
   const [location, navigate] = useLocation();
+  const lastValidationRef = useRef<number>(0);
+  const { toast } = useToast();
   
-  // TEMPORARILY DISABLED SESSION VALIDATION TO FIX INFINITE LOOP ISSUE
-  // useEffect(() => {
-  //   if (isAuthenticated) {
-  //     validateSession().catch(console.error);
-  //   }
-  // }, [location, isAuthenticated]);
+  // Enhanced session validation with rate limiting
+  useEffect(() => {
+    if (isAuthenticated) {
+      const now = Date.now();
+      // Only validate if it's been more than 30 seconds since last validation
+      // This prevents excessive validation while navigating between pages
+      if (now - lastValidationRef.current > 30000) {
+        lastValidationRef.current = now;
+        
+        validateSession()
+          .then(isValid => {
+            if (!isValid) {
+              toast({
+                title: "Session Error",
+                description: "Your session could not be validated. Please try logging in again.",
+                variant: "destructive"
+              });
+            }
+          })
+          .catch(error => {
+            console.error("Session validation error:", error);
+          });
+      }
+    }
+  }, [location, isAuthenticated, validateSession, toast]);
+  
+  // Also add automatic session refresh on interval
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Set up periodic session refresh every 5 minutes
+      const refreshInterval = setInterval(() => {
+        refreshSession().catch(console.error);
+      }, 5 * 60 * 1000);
+      
+      // Cleanup on unmount
+      return () => clearInterval(refreshInterval);
+    }
+  }, [isAuthenticated, refreshSession]);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -26,8 +61,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     }
   }, [isAuthenticated, isValidating, navigate]);
   
-  // Handle logout
+  // Enhanced logout with feedback
   const handleLogout = () => {
+    toast({
+      title: "Logging out",
+      description: "Please wait..."
+    });
+    
     logout();
     navigate("/admin");
   };
