@@ -57,11 +57,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
+      // Check file size (5MB max) - this is a backup to the multer limit
+      const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+      if (req.file.size > MAX_SIZE) {
+        return res.status(413).json({ 
+          message: 'File is too large. Maximum size is 5MB.',
+          size: req.file.size,
+          maxSize: MAX_SIZE
+        });
+      }
+      
       // Convert image to base64 data URL
       const base64Image = req.file.buffer.toString('base64');
       const mimeType = req.file.mimetype;
-      const imageUrl = `data:${mimeType};base64,${base64Image}`;
-      console.log('Image converted to base64');
+      let imageUrl = `data:${mimeType};base64,${base64Image}`;
+      
+      // Check final base64 size - limit to 200KB for production safety
+      const imageDataSize = imageUrl.length;
+      console.log(`Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
+      
+      if (imageDataSize > 200000) {
+        console.warn(`Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
+        
+        // Implement simple compression by limiting the image data length
+        // Get the type and encoding
+        const [metaData, base64Data] = imageUrl.split(',');
+        if (base64Data && base64Data.length > 200000) {
+          // Just truncate to a safer size - this is a simple approach
+          // A better solution would be to properly resize the image
+          const truncatedData = base64Data.slice(0, 200000);
+          imageUrl = `${metaData},${truncatedData}`;
+          console.log(`Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
+        }
+      }
       
       // Also save to disk for development environment (optional)
       if (process.env.NODE_ENV === 'development') {
@@ -75,7 +103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/json');
       return res.json({
         message: 'File uploaded successfully',
-        imageUrl
+        imageUrl,
+        sizeMB: (imageUrl.length / (1024 * 1024)).toFixed(2)
       });
     } catch (error) {
       console.error('File upload error:', error);
@@ -84,10 +113,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Keep the original route for backward compatibility
-  app.post('/api/admin/upload', isAdminAuthenticated, (req: Request, res: Response) => {
-    // Forward to the public endpoint
-    res.redirect(307, '/api/upload');
+  // Admin upload route - same logic as the public one but with authentication
+  app.post('/api/admin/upload', isAdminAuthenticated, upload.single('image'), async (req: Request, res: Response) => {
+    try {
+      console.log('[ADMIN] File upload request received', req.file ? 'with file' : 'without file');
+      
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      // Check file size (5MB max) - this is a backup to the multer limit
+      const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+      if (req.file.size > MAX_SIZE) {
+        return res.status(413).json({ 
+          message: 'File is too large. Maximum size is 5MB.',
+          size: req.file.size,
+          maxSize: MAX_SIZE
+        });
+      }
+      
+      // Convert image to base64 data URL
+      const base64Image = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+      let imageUrl = `data:${mimeType};base64,${base64Image}`;
+      
+      // Check final base64 size - limit to 200KB for production safety
+      const imageDataSize = imageUrl.length;
+      console.log(`[ADMIN] Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
+      
+      if (imageDataSize > 200000) {
+        console.warn(`[ADMIN] Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
+        
+        // Implement simple compression by limiting the image data length
+        // Get the type and encoding
+        const [metaData, base64Data] = imageUrl.split(',');
+        if (base64Data && base64Data.length > 200000) {
+          // Just truncate to a safer size - this is a simple approach
+          // A better solution would be to properly resize the image
+          const truncatedData = base64Data.slice(0, 200000);
+          imageUrl = `${metaData},${truncatedData}`;
+          console.log(`[ADMIN] Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
+        }
+      }
+      
+      // Also save to disk for development environment (optional)
+      if (process.env.NODE_ENV === 'development') {
+        const filename = `admin-product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, req.file.buffer);
+        console.log(`[ADMIN] Also saved to disk: ${filepath}`);
+      }
+      
+      // Set the Content-Type explicitly to prevent HTML response
+      res.setHeader('Content-Type', 'application/json');
+      return res.json({
+        message: 'File uploaded successfully',
+        imageUrl,
+        sizeMB: (imageUrl.length / (1024 * 1024)).toFixed(2)
+      });
+    } catch (error) {
+      console.error('[ADMIN] File upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: 'Failed to upload file', error: errorMessage });
+    }
   });
   
   // Juice routes

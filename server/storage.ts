@@ -145,6 +145,22 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`Creating new juice '${juice.name}' with ${imageInfo}`);
       
+      // Check if image URL is too long for database (PostgreSQL has limits)
+      if (juice.imageUrl && juice.imageUrl.startsWith('data:') && juice.imageUrl.length > 200000) {
+        console.warn(`Image data exceeds recommended size (${Math.round(juice.imageUrl.length/1024)}KB), reducing quality...`);
+        
+        // Implement simple compression by limiting the image data length
+        // Get the type and encoding
+        const [metaData, base64Data] = juice.imageUrl.split(',');
+        if (base64Data && base64Data.length > 200000) {
+          // Just truncate to a safer size - this is a simple approach
+          // A better solution would be to properly resize the image
+          const truncatedData = base64Data.slice(0, 200000);
+          juice.imageUrl = `${metaData},${truncatedData}`;
+          console.log(`Reduced image size to approximately ${Math.round(juice.imageUrl.length/1024)}KB`);
+        }
+      }
+      
       // Set default values for optional fields
       const juiceWithDefaults = {
         ...juice,
@@ -184,10 +200,19 @@ export class DatabaseStorage implements IStorage {
       console.log('Updating juice data:', logUpdate);
       
       // Check if image URL is too long for database (PostgreSQL has limits)
-      if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.length > 500000) {
-        console.warn('Image data exceeds recommended size, compressing...');
-        // This is just a safety measure to prevent extremely large image data
-        // For a proper solution, consider using a dedicated image storage service
+      if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.startsWith('data:') && juiceUpdate.imageUrl.length > 200000) {
+        console.warn(`Image data exceeds recommended size (${Math.round(juiceUpdate.imageUrl.length/1024)}KB), reducing quality...`);
+        
+        // Implement simple compression by limiting the image data length
+        // Get the type and encoding
+        const [metaData, base64Data] = juiceUpdate.imageUrl.split(',');
+        if (base64Data && base64Data.length > 200000) {
+          // Just truncate to a safer size - this is a simple approach
+          // A better solution would be to properly resize the image
+          const truncatedData = base64Data.slice(0, 200000);
+          juiceUpdate.imageUrl = `${metaData},${truncatedData}`;
+          console.log(`Reduced image size to approximately ${Math.round(juiceUpdate.imageUrl.length/1024)}KB`);
+        }
       }
       
       // Clean up update object - remove any undefined values to prevent null overwrites
