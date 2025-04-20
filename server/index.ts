@@ -17,6 +17,7 @@ declare module 'express-session' {
     loginTime?: string;
     lastActive?: string;
     userAgent?: string;
+    restoredFromFallback?: boolean;
   }
 }
 

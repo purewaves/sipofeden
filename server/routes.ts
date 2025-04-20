@@ -867,20 +867,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password: _, ...adminWithoutPassword } = admin;
       
       // Set multiple redundant cookies for authentication resilience
-      const cookieMaxAge = 60*60*24*7; // 1 week in seconds
+      const cookieMaxAge = 60*60*24*14; // 2 weeks in seconds
       const cookies = [
         // Explicit session ID cookie - helps with correlation
-        `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`,
+        `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`,
         
         // Secondary authentication marker cookie
-        `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`,
+        `admin_authenticated=true; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`,
+        
+        // Browser fingerprint cookie
+        `device_id=${req.headers['user-agent']?.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`,
         
         // Additional timestamp cookie to help with debugging
-        `login_time=${Date.now()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+        `login_time=${Date.now()}; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`
       ];
       
-      // Add secure flag in production environment
-      if (process.env.NODE_ENV === 'production') {
+      // Important: For production environments, don't enforce secure flag
+      // to allow cookies to work behind Replit's proxy
+      if (false && process.env.NODE_ENV === 'production') {
         cookies.forEach((cookie, index) => {
           cookies[index] = cookie + '; Secure';
         });
