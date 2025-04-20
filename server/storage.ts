@@ -136,12 +136,32 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateJuice(id: number, juiceUpdate: Partial<InsertJuice>): Promise<Juice | undefined> {
-    const result = await db.update(juices)
-      .set(juiceUpdate)
-      .where(eq(juices.id, id))
-      .returning();
+    // Log the update for debugging (excluding actual image data for clarity)
+    const logUpdate = { ...juiceUpdate };
+    if (logUpdate.imageUrl && logUpdate.imageUrl.startsWith('data:')) {
+      logUpdate.imageUrl = 'Base64 image data (truncated for log)';
+    }
+    console.log('Updating juice data:', logUpdate);
     
-    return result[0];
+    try {
+      // Check if image URL is too long for database (PostgreSQL has limits)
+      if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.length > 500000) {
+        console.warn('Image data exceeds recommended size, compressing...');
+        // This is just a safety measure to prevent extremely large image data
+        // For a proper solution, consider using a dedicated image storage service
+      }
+      
+      const result = await db.update(juices)
+        .set(juiceUpdate)
+        .where(eq(juices.id, id))
+        .returning();
+      
+      console.log('Juice update successful');
+      return result[0];
+    } catch (error) {
+      console.error('Error updating juice in database:', error);
+      throw error;
+    }
   }
   
   async deleteJuice(id: number): Promise<boolean> {

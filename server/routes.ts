@@ -77,6 +77,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       const imageUrl = `data:${mimeType};base64,${base64Image}`;
       
+      // Log image size for debugging
+      console.log(`Original image size: ${base64Image.length} bytes`);
+      
       // Also save to disk for development environment (optional for performance)
       if (process.env.NODE_ENV === 'development') {
         const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
