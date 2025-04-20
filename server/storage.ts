@@ -179,10 +179,12 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(juices, eq(cartItems.juiceId, juices.id))
     .where(eq(cartItems.sessionId, sessionId));
     
-    return items.map(item => ({
-      ...item.cart,
-      juice: item.juice
-    }));
+    return items
+      .filter(item => item.juice !== null) // Filter out any null juices
+      .map(item => ({
+        ...item.cart,
+        juice: item.juice as Juice // Safe to cast after filter
+      }));
   }
   
   async addToCart(item: InsertCartItem): Promise<CartItem> {
@@ -445,10 +447,13 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(juices, eq(orderItems.juiceId, juices.id))
     .where(eq(orderItems.orderId, id));
     
-    const items = itemsData.map(item => ({
-      ...item.orderItem,
-      juice: item.juice
-    }));
+    // Filter and map items, handling null juices
+    const items = itemsData
+      .filter(item => item.juice !== null)
+      .map(item => ({
+        ...item.orderItem,
+        juice: item.juice as Juice
+      }));
     
     return { ...order, items };
   }

@@ -2,11 +2,11 @@ import express, { type Express, Request, Response, NextFunction } from "express"
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import { upload } from "./cloudinary";
 import { 
   insertJuiceSchema, 
   insertCartItemSchema, 
@@ -42,29 +42,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
-  
-  // Configure multer for file uploads - using memory storage for production-safe uploads
-  const memStorage = multer.memoryStorage();
-  
-  const upload = multer({ 
-    storage: memStorage, 
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: function (req, file, cb) {
-      // Only accept images
-      if (!file.mimetype.startsWith('image/')) {
-        return cb(new Error('Only image files are allowed'));
-      }
-      cb(null, true);
-    }
-  });
 
   // Ensure the uploads directory is served statically
   app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
   
   // API Routes
   
-  // File upload route - uses Base64 encoding for production compatibility
-  app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
+  // Simple file upload route using Base64 encoding
+  app.post('/api/upload', upload.single('image'), async (req: Request, res: Response) => {
     try {
       console.log('File upload request received', req.file ? 'with file' : 'without file');
       
@@ -72,24 +57,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Convert the file buffer to a Base64 data URL
+      // Convert image to base64 data URL
       const base64Image = req.file.buffer.toString('base64');
       const mimeType = req.file.mimetype;
       const imageUrl = `data:${mimeType};base64,${base64Image}`;
+      console.log('Image converted to base64');
       
-      // Log image size for debugging
-      console.log(`Original image size: ${base64Image.length} bytes`);
-      
-      // Also save to disk for development environment (optional for performance)
+      // Also save to disk for development environment (optional)
       if (process.env.NODE_ENV === 'development') {
         const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
         const filepath = path.join(uploadDir, filename);
         fs.writeFileSync(filepath, req.file.buffer);
         console.log(`Also saved to disk: ${filepath}`);
       }
-      
-      // Log the successful upload for debugging
-      console.log(`Image uploaded successfully as Base64 URL`);
       
       // Set the Content-Type explicitly to prevent HTML response
       res.setHeader('Content-Type', 'application/json');
