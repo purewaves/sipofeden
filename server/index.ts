@@ -15,19 +15,11 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for file uploads
-const storage_config = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
+// Use memory storage for multer to keep files in memory
+const memStorage = multer.memoryStorage();
 
 const upload = multer({ 
-  storage: storage_config,
+  storage: memStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -57,7 +49,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Register the main file upload endpoint before everything else
+// Register the main file upload endpoint - uses Base64 encoding for production compatibility
 app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     console.log('File upload request received at /api/upload', req.file ? 'with file' : 'without file');
@@ -66,11 +58,21 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
-    // Use a relative URL path that will work both in development and production
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // Convert the file buffer to a Base64 data URL
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const imageUrl = `data:${mimeType};base64,${base64Image}`;
+    
+    // Also save to disk for development environment (optional for performance)
+    if (process.env.NODE_ENV === 'development') {
+      const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+      const filepath = path.join(uploadDir, filename);
+      fs.writeFileSync(filepath, req.file.buffer);
+      log(`Also saved to disk: ${filepath}`, 'upload');
+    }
     
     // Log the successful upload for debugging
-    log(`Image uploaded successfully: ${imageUrl}`, 'upload');
+    log(`Image uploaded successfully as Base64 URL`, 'upload');
     
     // Set the Content-Type explicitly to prevent HTML response
     res.setHeader('Content-Type', 'application/json');

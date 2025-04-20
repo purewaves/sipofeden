@@ -43,20 +43,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
   
-  // Configure multer for file uploads
-  const uploadStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, 'product-' + uniqueSuffix + ext);
-    }
-  });
+  // Configure multer for file uploads - using memory storage for production-safe uploads
+  const memStorage = multer.memoryStorage();
   
   const upload = multer({ 
-    storage: uploadStorage,
+    storage: memStorage, 
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: function (req, file, cb) {
       // Only accept images
@@ -72,8 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API Routes
   
-  // File upload route - accessible for both development and production
-  // Create a separate public upload route that doesn't require authentication
+  // File upload route - uses Base64 encoding for production compatibility
   app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
     try {
       console.log('File upload request received', req.file ? 'with file' : 'without file');
@@ -82,11 +72,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Use a relative URL path that will work both in development and production
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // Convert the file buffer to a Base64 data URL
+      const base64Image = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+      const imageUrl = `data:${mimeType};base64,${base64Image}`;
+      
+      // Also save to disk for development environment (optional for performance)
+      if (process.env.NODE_ENV === 'development') {
+        const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, req.file.buffer);
+        console.log(`Also saved to disk: ${filepath}`);
+      }
       
       // Log the successful upload for debugging
-      console.log(`Image uploaded successfully: ${imageUrl}`);
+      console.log(`Image uploaded successfully as Base64 URL`);
       
       // Set the Content-Type explicitly to prevent HTML response
       res.setHeader('Content-Type', 'application/json');
@@ -96,7 +96,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('File upload error:', error);
-      res.status(500).json({ message: 'Failed to upload file' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: 'Failed to upload file', error: errorMessage });
     }
   });
   
