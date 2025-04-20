@@ -93,9 +93,13 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
+    // Set up PostgreSQL session store with more robust configuration
     this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true 
+      pool,
+      createTableIfMissing: true,
+      tableName: 'session', // standard table name
+      schemaName: 'public', // ensure we're in the public schema
+      ttl: 86400 // 24 hours - longer session timeout
     });
     
     // Check if admin exists, if not create default admin

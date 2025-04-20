@@ -679,15 +679,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set up admin session
       req.session.adminId = admin.id;
       
-      // Update last login time
-      await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
-      
-      // Don't return the password
-      const { password: _, ...adminWithoutPassword } = admin;
-      
-      res.json({ 
-        message: "Login successful",
-        admin: adminWithoutPassword
+      // Force session save to ensure it's stored immediately
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ message: "Failed to save session" });
+        }
+        
+        // Update last login time
+        storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false)
+          .then(() => {
+            // Don't return the password
+            const { password: _, ...adminWithoutPassword } = admin;
+            
+            // Set a more specific session cookie if needed in development
+            if (process.env.NODE_ENV !== 'production') {
+              res.setHeader('Set-Cookie', [
+                `sip_eden_sid=${req.sessionID}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24*7}`
+              ]);
+            }
+            
+            res.json({ 
+              message: "Login successful",
+              admin: adminWithoutPassword
+            });
+          })
+          .catch((error) => {
+            console.error("Failed to update login status:", error);
+            res.status(500).json({ message: "Login partially failed" });
+          });
       });
     } catch (error) {
       console.error("Admin login error:", error);

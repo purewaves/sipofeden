@@ -56,10 +56,12 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 app.use(session({
   store: storage.sessionStore,
   secret: process.env.SESSION_SECRET || 'sip-of-eden-secret',
-  resave: false,
+  name: 'sip_eden_sid', // Custom session ID name
+  resave: true, // IMPORTANT: Changed to true to ensure session is saved on each request
+  rolling: true, // Reset cookie expiration on each request
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false for development - in production, use secure: true with HTTPS
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
     sameSite: 'lax', // For better CSRF protection but still allowing links
     path: '/', // Ensure cookies are sent with every request
