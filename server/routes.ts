@@ -57,11 +57,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Check file size (5MB max) - this is a backup to the multer limit
-      const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+      // Check file size (10MB max) - this is a backup to the multer limit
+      // iPhone photos can be 2-3MB or larger
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
-          message: 'File is too large. Maximum size is 5MB.',
+          message: 'File is too large. Maximum size is 10MB.',
           size: req.file.size,
           maxSize: MAX_SIZE
         });
@@ -72,20 +73,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - limit to 200KB for production safety
+      // Check final base64 size - limit to 1MB for production database safety
       const imageDataSize = imageUrl.length;
       console.log(`Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      if (imageDataSize > 200000) {
+      if (imageDataSize > 1000000) {
         console.warn(`Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > 200000) {
+        if (base64Data && base64Data.length > 1000000) {
           // Just truncate to a safer size - this is a simple approach
           // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 200000);
+          const truncatedData = base64Data.slice(0, 1000000);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
         }
@@ -122,11 +123,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Check file size (5MB max) - this is a backup to the multer limit
-      const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+      // Check file size (10MB max) - this is a backup to the multer limit
+      // iPhone photos can be 2-3MB or larger
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
-          message: 'File is too large. Maximum size is 5MB.',
+          message: 'File is too large. Maximum size is 10MB.',
           size: req.file.size,
           maxSize: MAX_SIZE
         });
@@ -137,20 +139,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - limit to 200KB for production safety
+      // Check final base64 size - limit to 1MB for production database safety
       const imageDataSize = imageUrl.length;
       console.log(`[ADMIN] Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      if (imageDataSize > 200000) {
+      if (imageDataSize > 1000000) {
         console.warn(`[ADMIN] Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > 200000) {
-          // Just truncate to a safer size - this is a simple approach
+        if (base64Data && base64Data.length > 1000000) {
+          // We'll truncate to 1MB for database safety
           // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 200000);
+          const truncatedData = base64Data.slice(0, 1000000);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`[ADMIN] Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
         }
