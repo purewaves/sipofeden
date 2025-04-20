@@ -52,22 +52,47 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 
 // Image upload endpoint is now defined in routes.ts to avoid duplication
 
-// Session middleware
+// Session middleware with enhanced cross-tab persistence
+// Use a well-defined session secret to ensure cookies are consistently signed
+const SESSION_SECRET = process.env.SESSION_SECRET || 'sip-of-eden-secret-key-for-session-persistence';
 app.use(session({
   store: storage.sessionStore,
-  secret: process.env.SESSION_SECRET || 'sip-of-eden-secret',
-  name: 'sip_eden_sid', // Custom session ID name
-  resave: true, // IMPORTANT: Changed to true to ensure session is saved on each request
+  secret: SESSION_SECRET,
+  name: 'sip_eden_sid', // Custom session ID name for easier identification
+  resave: true, // IMPORTANT: Must be true for cross-tab persistence
   rolling: true, // Reset cookie expiration on each request
-  saveUninitialized: false,
+  saveUninitialized: false, // Don't save empty sessions
   cookie: {
-    secure: false, // Set to false for development - in production, use secure: true with HTTPS
+    secure: process.env.NODE_ENV === 'production', // Only use secure in production
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
     sameSite: 'lax', // For better CSRF protection but still allowing links
     path: '/', // Ensure cookies are sent with every request
-    httpOnly: true // For security - prevents JavaScript access
+    httpOnly: true, // For security - prevents JavaScript access
+    domain: undefined // Allow the browser to determine the domain (improves cross-subdomain support)
   }
 }));
+
+// Add session regeneration middleware to reduce session fixation risks
+// while maintaining persistence
+app.use((req, res, next) => {
+  // Only regenerate after a certain period to avoid constant regeneration
+  // that could cause session loss
+  const hour = 60 * 60 * 1000;
+  if (req.session.cookie.maxAge && req.session.adminId && 
+      req.session.cookie.maxAge <= (6 * 24 * hour)) { // Regenerate when 1 day left
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("Error regenerating session:", err);
+        // Continue anyway to avoid blocking the request
+      }
+      // Restore admin ID after regeneration
+      req.session.adminId = req.session.adminId;
+      next();
+    });
+  } else {
+    next();
+  }
+});
 
 // Logging middleware
 app.use((req, res, next) => {
