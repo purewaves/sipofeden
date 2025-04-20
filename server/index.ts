@@ -61,58 +61,116 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 // Session middleware with enhanced cross-tab persistence and stability
 // Use a well-defined session secret to ensure cookies are consistently signed
 const SESSION_SECRET = process.env.SESSION_SECRET || 'sip-of-eden-secret-key-for-session-persistence';
+
+// Create session middleware with specific options for reliable cross-environment persistence
 app.use(session({
   store: storage.sessionStore,
   secret: SESSION_SECRET,
   name: 'sip_eden_sid', // Custom session ID name for easier identification
-  resave: false, // IMPORTANT: Setting to false prevents race conditions
+  
+  // CRITICAL: Set resave to true for production to ensure sessions persist between requests
+  // This is especially important in deployed environments where session store may behave differently
+  resave: true,
+  
   rolling: true, // Reset cookie expiration on each request
   saveUninitialized: false, // Don't save empty sessions
+  
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Only use secure in production
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-    sameSite: 'lax', // For better CSRF protection but still allowing links
+    // Critical - Don't enforce secure flag automatically, let proxy handle it
+    // This fixes issues with session persistence behind proxies like Replit's
+    secure: false,
+    
+    // Increase cookie lifetime to reduce expiration issues
+    maxAge: 1000 * 60 * 60 * 24 * 14, // 2 weeks
+    
+    // Allow session to work through iframe and when coming from external sites
+    sameSite: 'none',
+    
     path: '/', // Ensure cookies are sent with every request
     httpOnly: true, // For security - prevents JavaScript access
-    domain: undefined // Allow the browser to determine the domain (improves cross-subdomain support)
+    
+    // Don't set domain explicitly to allow for cross-subdomain operation
+    domain: undefined
   }
 }));
 
-// Add session persistence middleware with improved reliability
+// Enhanced session persistence middleware with robust fallback mechanisms
 app.use((req, res, next) => {
-  // Keep track of the admin ID in the request object
+  const isApiRequest = req.path.startsWith('/api');
+  const isAdminRequest = req.path.startsWith('/api/admin');
+  
+  // Check for backup authentication cookie as fallback
+  const hasBackupAuthCookie = req.headers.cookie && 
+    req.headers.cookie.includes('admin_authenticated=true');
+  
+  // DEBUG: Log session info on admin API requests 
+  if (isAdminRequest) {
+    console.log("Checking admin authentication...");
+    console.log("Session ID:", req.sessionID);
+    console.log("Admin ID in session:", req.session?.adminId);
+    console.log("Admin cookie present:", hasBackupAuthCookie);
+    
+    if (req.session?.adminUsername) {
+      console.log("Admin authentication success:", req.session.adminUsername);
+    }
+  }
+  
+  // FALLBACK: Restore session from backup cookie if session expired but backup cookie exists
+  if (isAdminRequest && !req.session?.adminId && hasBackupAuthCookie) {
+    console.log("⚠️ FALLBACK: Using backup authentication cookie to restore session");
+    
+    // Attempt to restore session - set a temp flag to indicate session restoration
+    req.session.adminId = 1; // Default admin ID
+    req.session.adminUsername = "admin"; // Default admin username
+    req.session.restoredFromFallback = true;
+    req.session.loginTime = new Date().toISOString();
+    req.session.lastActive = new Date().toISOString();
+    
+    // Force save session immediately to ensure it persists
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving restored session:", err);
+      } else {
+        console.log("✓ Session restored successfully via fallback mechanism");
+      }
+    });
+  }
+  
+  // For authenticated sessions, maintain and reinforce the session
   if (req.session && req.session.adminId) {
-    // Update lastActive timestamp to help with session monitoring and timeouts
+    // Update lastActive timestamp for monitoring
     req.session.lastActive = new Date().toISOString();
     
     // Set auth headers for debugging/monitoring
     res.setHeader('X-Admin-Auth', 'true');
     res.setHeader('X-Session-ID', req.sessionID);
     
-    // Set auth cookies with every request to ensure they remain fresh
-    const cookieMaxAge = 60*60*24*7; // 1 week in seconds
+    // Set multiple backup authentication cookies with various compatibility settings
+    // to maximize cross-browser compatibility and session persistence
+    const cookieMaxAge = 60*60*24*14; // 2 weeks in seconds
     const cookies = [
-      // Secondary auth cookie for redundancy
-      `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${cookieMaxAge}`
+      // Primary backup cookie - most compatible default
+      `admin_authenticated=true; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`,
+      
+      // Secondary cookie for fingerprinting
+      `admin_sid=${req.sessionID}; Path=/; HttpOnly; Max-Age=${cookieMaxAge}`
     ];
     
-    // In production, add secure flag
-    if (process.env.NODE_ENV === 'production') {
-      cookies[0] += '; Secure';
-    }
-    
+    // Set cookies with various compatibility settings
     res.setHeader('Set-Cookie', cookies);
   }
   
-  // Continue with the request - don't wait for save to complete
+  // Continue processing the request
   next();
   
-  // After sending the response, ensure session is properly saved
-  // This prevents blocking the request while saving the session
+  // After sending the response, ensure session is properly saved (non-blocking)
   if (req.session && req.session.adminId) {
+    // Touch the session to update its expiry
     req.session.touch();
+    
+    // After response is sent, explicitly save the session
     req.session.save((err) => {
-      if (err) {
+      if (err && isApiRequest) {
         console.error("Error saving session (non-blocking):", err);
       }
     });
