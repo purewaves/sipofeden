@@ -58,10 +58,36 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
 
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      const response = await apiRequest("POST", "/api/admin/juices", data);
-      return response.json();
+      console.log("Creating product with data:", {
+        ...data, 
+        imageUrl: data.imageUrl ? 'Present (truncated)' : 'Not present'
+      });
+      
+      try {
+        const response = await apiRequest("POST", "/api/admin/juices", data);
+        
+        if (!response.ok) {
+          // Try to get error details
+          let errorText = await response.text();
+          try {
+            // Attempt to parse as JSON
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.message || `Creation failed with status: ${response.status}`);
+          } catch (parseError) {
+            // If not JSON, use the raw text
+            const errorMsg = errorText || response.statusText || '';
+            throw new Error(`Creation failed: ${errorMsg}${response.status ? ` (status ${response.status})` : ''}`);
+          }
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Create API error:", err);
+        throw err;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Product created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/juices'] });
       toast({
         title: "Product created",
@@ -69,11 +95,21 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       });
       onClose();
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("Failed to create product:", error);
+      
+      // Attempt to display a more helpful error message
+      let errorMessage = "Failed to create product.";
+      
+      if (error.message) {
+        errorMessage += ` ${error.message}`;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to create product",
+        title: "Creation Error",
+        description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       });
     },
   });
@@ -113,10 +149,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
           try {
             // Attempt to parse as JSON
             const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.message || 'Update failed with status: ' + response.status);
+            throw new Error(errorJson.message || `Update failed with status: ${response.status}`);
           } catch (parseError) {
             // If not JSON, use the raw text
-            throw new Error('Update failed: ' + errorText || response.statusText || response.status);
+            const errorMsg = errorText || response.statusText || '';
+            throw new Error(`Update failed: ${errorMsg}${response.status ? ` (status ${response.status})` : ''}`);
           }
         }
         
