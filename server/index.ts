@@ -61,6 +61,9 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    sameSite: 'lax', // For better CSRF protection but still allowing links
+    path: '/', // Ensure cookies are sent with every request
+    httpOnly: true // For security - prevents JavaScript access
   }
 }));
 
@@ -151,6 +154,30 @@ app.use((req, res, next) => {
 
 // Global error handling
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ error: "Internal server error" });
+  // Log the full error for server-side debugging
+  console.error("Server error:", err);
+  
+  // Determine appropriate error response
+  let statusCode = 500;
+  let errorMessage = "Internal server error";
+  
+  // Handle specific error types
+  if (err.type === 'entity.too.large') {
+    // Request entity too large error
+    statusCode = 413;
+    errorMessage = "The request is too large. Please reduce the size of any uploaded files.";
+  } else if (err.name === 'UnauthorizedError') {
+    // Authentication error
+    statusCode = 401;
+    errorMessage = "Authentication failed. Please log in again.";
+  }
+  
+  // Send the error response with appropriate status
+  res.status(statusCode).json({ 
+    error: errorMessage,
+    // Include request path to help with debugging
+    path: _req.path,
+    // Include a timestamp
+    timestamp: new Date().toISOString()
+  });
 });

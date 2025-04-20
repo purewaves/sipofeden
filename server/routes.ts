@@ -27,12 +27,28 @@ import {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware to check if admin is authenticated
-  const isAdminAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  const isAdminAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+    // Check for session and admin ID
     if (req.session && req.session.adminId) {
-      next();
-    } else {
-      res.status(401).json({ message: "Unauthorized" });
+      try {
+        // Verify admin exists in database to ensure session is valid
+        const admin = await storage.getAdminById(req.session.adminId);
+        if (admin) {
+          // Admin found, proceed with the request
+          next();
+          return;
+        }
+        // Admin not found but session exists - clear invalid session
+        req.session.destroy((err) => {
+          if (err) console.error("Error destroying invalid session:", err);
+        });
+      } catch (error) {
+        console.error("Error verifying admin authentication:", error);
+      }
     }
+    
+    // If we reach here, authentication failed
+    res.status(401).json({ message: "Unauthorized - Please login to continue" });
   };
   
   // Set up storage for file uploads - use the public directory to ensure files are accessible in production
