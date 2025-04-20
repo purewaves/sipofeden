@@ -131,19 +131,58 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createJuice(juice: InsertJuice): Promise<Juice> {
-    const result = await db.insert(juices).values(juice).returning();
-    return result[0];
+    try {
+      // Log image data info for debugging
+      let imageInfo = "No image provided";
+      if (juice.imageUrl) {
+        if (juice.imageUrl.startsWith('data:')) {
+          const sizeKB = Math.round(juice.imageUrl.length / 1024);
+          imageInfo = `Base64 image provided (size: ~${sizeKB}KB)`;
+        } else {
+          imageInfo = `URL image provided: ${juice.imageUrl.substring(0, 50)}...`;
+        }
+      }
+      
+      console.log(`Creating new juice '${juice.name}' with ${imageInfo}`);
+      
+      // Set default values for optional fields
+      const juiceWithDefaults = {
+        ...juice,
+        featured: juice.featured ?? false,
+        stock: juice.stock ?? 0
+      };
+      
+      const result = await db.insert(juices).values(juiceWithDefaults).returning();
+      console.log(`Juice created successfully with ID: ${result[0].id}`);
+      return result[0];
+    } catch (error) {
+      console.error('Error creating juice:', error);
+      throw error;
+    }
   }
   
   async updateJuice(id: number, juiceUpdate: Partial<InsertJuice>): Promise<Juice | undefined> {
-    // Log the update for debugging (excluding actual image data for clarity)
-    const logUpdate = { ...juiceUpdate };
-    if (logUpdate.imageUrl && logUpdate.imageUrl.startsWith('data:')) {
-      logUpdate.imageUrl = 'Base64 image data (truncated for log)';
-    }
-    console.log('Updating juice data:', logUpdate);
-    
     try {
+      // Get current juice data first
+      const current = await this.getJuiceById(id);
+      if (!current) {
+        console.error(`Juice with id ${id} not found`);
+        return undefined;
+      }
+      
+      // Handle empty imageUrl (preserve existing)
+      if (juiceUpdate.imageUrl === "" || juiceUpdate.imageUrl === null || juiceUpdate.imageUrl === undefined) {
+        console.log('Empty imageUrl provided, preserving existing image');
+        juiceUpdate.imageUrl = current.imageUrl;
+      }
+      
+      // Log the update for debugging (excluding actual image data for clarity)
+      const logUpdate = { ...juiceUpdate };
+      if (logUpdate.imageUrl && logUpdate.imageUrl.startsWith('data:')) {
+        logUpdate.imageUrl = 'Base64 image data (truncated for log)';
+      }
+      console.log('Updating juice data:', logUpdate);
+      
       // Check if image URL is too long for database (PostgreSQL has limits)
       if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.length > 500000) {
         console.warn('Image data exceeds recommended size, compressing...');
@@ -151,8 +190,27 @@ export class DatabaseStorage implements IStorage {
         // For a proper solution, consider using a dedicated image storage service
       }
       
+      // Clean up update object - remove any undefined values to prevent null overwrites
+      Object.keys(juiceUpdate).forEach(key => {
+        if (juiceUpdate[key as keyof InsertJuice] === undefined) {
+          delete juiceUpdate[key as keyof InsertJuice];
+        }
+      });
+      
+      // Ensure all fields have values (fallback to current values if not provided)
+      const cleanedUpdate = {
+        name: juiceUpdate.name ?? current.name,
+        description: juiceUpdate.description ?? current.description,
+        price: juiceUpdate.price ?? current.price,
+        imageUrl: juiceUpdate.imageUrl ?? current.imageUrl,
+        category: juiceUpdate.category ?? current.category,
+        stock: juiceUpdate.stock ?? current.stock,
+        featured: juiceUpdate.featured ?? current.featured,
+        sku: juiceUpdate.sku ?? current.sku
+      };
+      
       const result = await db.update(juices)
-        .set(juiceUpdate)
+        .set(cleanedUpdate)
         .where(eq(juices.id, id))
         .returning();
       
