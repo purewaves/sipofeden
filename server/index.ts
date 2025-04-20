@@ -72,26 +72,28 @@ app.use(session({
   }
 }));
 
-// Add session regeneration middleware to reduce session fixation risks
-// while maintaining persistence
+// Add session persistence middleware
 app.use((req, res, next) => {
-  // Only regenerate after a certain period to avoid constant regeneration
-  // that could cause session loss
-  const hour = 60 * 60 * 1000;
-  if (req.session.cookie.maxAge && req.session.adminId && 
-      req.session.cookie.maxAge <= (6 * 24 * hour)) { // Regenerate when 1 day left
-    req.session.regenerate((err) => {
+  // Keep track of the admin ID in the request object
+  // This helps maintain the session across tabs
+  if (req.session.adminId) {
+    // Store the admin ID in a local variable to access outside
+    const adminId = req.session.adminId;
+    
+    // Force session touch on every admin request to extend cookie lifetime
+    // This helps with cross-tab persistence
+    req.session.touch();
+    req.session.save((err) => {
       if (err) {
-        console.error("Error regenerating session:", err);
-        // Continue anyway to avoid blocking the request
+        console.error("Error saving session:", err);
       }
-      // Restore admin ID after regeneration
-      req.session.adminId = req.session.adminId;
-      next();
     });
-  } else {
-    next();
+    
+    // Add a response header to indicate admin is authenticated
+    // This helps with debugging session issues
+    res.setHeader('X-Admin-Auth', 'true');
   }
+  next();
 });
 
 // Logging middleware

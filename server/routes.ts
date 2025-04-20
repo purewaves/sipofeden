@@ -196,12 +196,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Juice routes
+  // Juice routes with inventory verification
   app.get("/api/juices", async (req: Request, res: Response) => {
     try {
+      // Get all juices with optional inventory verification
       const juices = await storage.getAllJuices();
+      
+      // Check if inventory verification is requested
+      if (req.query.verifyInventory === 'true') {
+        console.log("Performing inventory verification");
+        
+        // Get all orders to verify inventory counts
+        const orders = await storage.getOrders();
+        let orderItems: any[] = [];
+        
+        // Collect all order items to calculate real inventory
+        for (const order of orders) {
+          try {
+            const orderDetails = await storage.getOrderById(order.id);
+            if (orderDetails && orderDetails.items) {
+              orderItems = [...orderItems, ...orderDetails.items];
+            }
+          } catch (err) {
+            console.error(`Error fetching order items for order ${order.id}:`, err);
+          }
+        }
+        
+        // Calculate accurate inventory for each juice
+        for (const juice of juices) {
+          try {
+            // Calculate total sold quantity for this juice
+            const soldItems = orderItems.filter(item => item.juiceId === juice.id);
+            const totalSold = soldItems.reduce((sum, item) => sum + item.quantity, 0);
+            
+            // Update stock if needed (this is simplified - a real implementation would
+            // account for returns, restocks, etc.)
+            if (juice.stock < 0) {
+              console.warn(`Fixing negative stock for juice ${juice.id} (${juice.name})`);
+              await storage.updateJuice(juice.id, { ...juice, stock: 0 });
+              juice.stock = 0;
+            }
+            
+            // Add calculated sales data to the response
+            juice.calculatedSales = totalSold;
+          } catch (err) {
+            console.error(`Error verifying juice ${juice.id}:`, err);
+          }
+        }
+      }
+      
       res.json(juices);
     } catch (error) {
+      console.error("Error fetching juices:", error);
       res.status(500).json({ message: "Failed to fetch juices" });
     }
   });
@@ -716,18 +762,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   
-  // Admin profile routes
+  // Admin profile routes with enhanced session persistence
   app.get("/api/admin/profile", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const adminId = req.session.adminId as number;
+      
+      // Save session for cross-tab consistency
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session in profile route:", err);
+        }
+      });
+      
       const admin = await storage.getAdminById(adminId);
       
       if (!admin) {
+        console.error(`Admin with ID ${adminId} not found but session exists`);
+        // Clear invalid session
+        req.session.destroy((err) => {
+          if (err) console.error("Error destroying invalid session:", err);
+        });
         return res.status(404).json({ message: "Admin not found" });
       }
       
       // Don't return password
       const { password, ...adminWithoutPassword } = admin;
+      
+      // Set a custom cookie header for admin identification
+      // This helps with persistent authentication across tabs
+      res.setHeader('Set-Cookie', [
+        `admin_authenticated=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24*7}`
+      ]);
       
       res.status(200).json(adminWithoutPassword);
     } catch (error) {
