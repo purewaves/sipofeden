@@ -21,7 +21,7 @@ const memStorage = multer.memoryStorage();
 const upload = multer({ 
   storage: memStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit - increased to handle iPhone photos
   },
   fileFilter: (req, file, cb) => {
     // Accept only image files
@@ -42,8 +42,9 @@ declare module 'express-session' {
 
 // Create Express app
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Increase JSON body parser limit to handle large base64 images (up to 50MB)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // Serve static files from the public directory
 app.use(express.static('public'));
