@@ -5,7 +5,7 @@ import { z } from "zod";
 import path from "path";
 import fs from "fs";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { upload } from "./cloudinary";
 import { 
   insertJuiceSchema, 
@@ -584,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.adminId = admin.id;
       
       // Update last login time
-      await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin);
+      await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
       
       // Don't return the password
       const { password: _, ...adminWithoutPassword } = admin;
@@ -918,8 +918,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes for loyalty system
   app.get("/api/admin/loyalty/customers", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      // Get all customers with pagination
-      const customers = await db.select().from(loyaltyCustomers).orderBy(loyaltyCustomers.points, 'desc');
+      // Get all customers with pagination - order by points (highest first)
+      const customers = await db.select().from(loyaltyCustomers).orderBy(desc(loyaltyCustomers.points));
       res.json(customers);
     } catch (error) {
       console.error("Error fetching loyalty customers for admin:", error);
@@ -936,7 +936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })
       .from(loyaltyActivities)
       .leftJoin(loyaltyCustomers, eq(loyaltyActivities.customerId, loyaltyCustomers.id))
-      .orderBy(loyaltyActivities.createdAt, 'desc')
+      .orderBy(desc(loyaltyActivities.createdAt))
       .limit(50);
       
       const formattedActivities = activities.map(item => ({
