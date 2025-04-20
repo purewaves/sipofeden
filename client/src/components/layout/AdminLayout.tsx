@@ -12,13 +12,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { isAuthenticated, logout, isValidating, validateSession } = useAuth();
   const [location, navigate] = useLocation();
   
-  // Validate session on component mount and when location changes
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Validate session with server on each admin page navigation
-      validateSession().catch(console.error);
-    }
-  }, [validateSession, location, isAuthenticated]);
+  // TEMPORARILY DISABLED SESSION VALIDATION TO FIX INFINITE LOOP ISSUE
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     validateSession().catch(console.error);
+  //   }
+  // }, [location, isAuthenticated]);
   
   // Redirect to login if not authenticated
   useEffect(() => {
