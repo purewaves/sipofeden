@@ -6,20 +6,7 @@ import { runMigrations } from "./migrations";
 import session from "express-session";
 import { storage } from "./storage";
 import path from "path";
-import multer from "multer";
-
-// Configure multer for file uploads
-const storage_config = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), 'public', 'uploads'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
-const upload = multer({ storage: storage_config });
+import { upload, uploadToCloudinary } from "./cloudinary";
 
 // Extend the session interface to include adminId
 declare module 'express-session' {
@@ -37,8 +24,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Register the main file upload endpoint before everything else
-app.post('/api/upload', upload.single('image'), (req, res) => {
+// Register the main file upload endpoint before everything else using Cloudinary
+app.post('/api/upload', upload.single('image'), async (req, res) => {
   try {
     console.log('File upload request received at /api/upload', req.file ? 'with file' : 'without file');
     
@@ -46,21 +33,23 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
-    // Use a relative URL path that will work both in development and production
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // Upload to Cloudinary instead of local storage
+    const result = await uploadToCloudinary(req.file.buffer);
+    const imageUrl = result.url;
     
     // Log the successful upload for debugging
-    log(`Image uploaded successfully: ${imageUrl}`, 'upload');
+    log(`Image uploaded successfully to Cloudinary: ${imageUrl}`, 'upload');
     
     // Set the Content-Type explicitly to prevent HTML response
     res.setHeader('Content-Type', 'application/json');
     return res.json({
       message: 'File uploaded successfully',
-      imageUrl
+      imageUrl,
+      public_id: result.public_id
     });
   } catch (error) {
     console.error('File upload error:', error);
-    res.status(500).json({ message: 'Failed to upload file' });
+    res.status(500).json({ message: 'Failed to upload file', error: error.message });
   }
 });
 
