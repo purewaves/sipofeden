@@ -80,21 +80,36 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
 
   const updateProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      console.log("Updating product with data:", data);
-      const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, {
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        imageUrl: data.imageUrl,
-        category: data.category,
-        stock: data.stock,
-        featured: data.featured,
-        sku: data.sku
-      });
-      return response.json();
+      // Create a trimmed down version of data to send to the API
+      // This is especially important for Base64 images - trim for console log only
+      const logData = {
+        ...data,
+        imageUrl: data.imageUrl ? 
+          (data.imageUrl.startsWith('data:') ? 'Base64 image (truncated)' : data.imageUrl) : 
+          'No image'
+      };
+      console.log("Updating product with data:", logData);
+      
+      try {
+        const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, {
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          imageUrl: data.imageUrl,
+          category: data.category,
+          stock: data.stock,
+          featured: data.featured,
+          sku: data.sku
+        });
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Update API error:", err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
-      console.log("Product updated successfully:", data);
+      console.log("Product updated successfully");
       queryClient.invalidateQueries({ queryKey: ['/api/juices'] });
       toast({
         title: "Product updated",
@@ -118,17 +133,22 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       const formData = new FormData();
       formData.append('image', file);
       
-      // Use the public upload endpoint that doesn't require authentication
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to upload image: ' + await response.text());
+      try {
+        // Use the public upload endpoint that doesn't require authentication
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to upload image: ' + await response.text());
+        }
+        
+        return await response.json();
+      } catch (err) {
+        console.error("Upload error:", err);
+        throw err;
       }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       // Update the form with the new image URL
@@ -136,23 +156,12 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       setPreviewImage(data.imageUrl);
       setIsUploading(false);
       
-      // If editing mode, don't automatically update the product with the new image
-      // Just set the form value and let the user click update
-      // This prevents issues with very large Base64 image URLs
-      /* 
-      if (isEditing && initialData) {
-        const updatedData = {
-          ...initialData,
-          imageUrl: data.imageUrl,
-          featured: initialData.featured || false
-        };
-        updateProductMutation.mutate(updatedData);
-      }
-      */
-      
+      // Don't automatically update - this was causing the update failure
+      // Let the user click the update button to save changes
       toast({
         title: "Image uploaded",
-        description: "The image has been uploaded successfully",
+        description: "Image uploaded successfully. Click 'Update Product' to save all changes.",
+        duration: 5000,
       });
     },
     onError: (error) => {

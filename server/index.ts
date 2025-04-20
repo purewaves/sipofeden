@@ -49,43 +49,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Register the main file upload endpoint - uses Base64 encoding for production compatibility
-app.post('/api/upload', upload.single('image'), (req, res) => {
-  try {
-    console.log('File upload request received at /api/upload', req.file ? 'with file' : 'without file');
-    
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    
-    // Convert the file buffer to a Base64 data URL
-    const base64Image = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
-    const imageUrl = `data:${mimeType};base64,${base64Image}`;
-    
-    // Also save to disk for development environment (optional for performance)
-    if (process.env.NODE_ENV === 'development') {
-      const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
-      const filepath = path.join(uploadDir, filename);
-      fs.writeFileSync(filepath, req.file.buffer);
-      log(`Also saved to disk: ${filepath}`, 'upload');
-    }
-    
-    // Log the successful upload for debugging
-    log(`Image uploaded successfully as Base64 URL`, 'upload');
-    
-    // Set the Content-Type explicitly to prevent HTML response
-    res.setHeader('Content-Type', 'application/json');
-    return res.json({
-      message: 'File uploaded successfully',
-      imageUrl
-    });
-  } catch (err) {
-    console.error('File upload error:', err);
-    const error = err as Error;
-    res.status(500).json({ message: 'Failed to upload file', error: error.message || 'Unknown error' });
-  }
-});
+// Image upload endpoint is now defined in routes.ts to avoid duplication
 
 // Session middleware
 app.use(session({
