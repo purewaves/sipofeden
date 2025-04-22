@@ -37,31 +37,103 @@ function subscribeToPushNotifications(registration: ServiceWorkerRegistration) {
       if (permission === 'granted') {
         console.log('Notification permission granted');
         
-        // Here we would subscribe the user to push notifications
-        // This requires a backend push notification service with public VAPID keys
-        // Commented out code below shows how this would work
-        
-        /*
-        const publicVapidKey = 'your-public-vapid-key';
-        
-        registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-        })
-        .then(subscription => {
-          // Send subscription to server
-          console.log('User is subscribed to push notifications');
-          // Here you would send the subscription to your server
-        })
-        .catch(error => {
-          console.error('Push subscription error:', error);
-        });
-        */
+        // Check if user is already authenticated as admin before subscribing
+        // Only admins need push notifications
+        fetch('/api/admin/profile')
+          .then(response => {
+            if (response.ok) {
+              // User is authenticated as admin, proceed with subscription
+              return fetch('/api/admin/notifications/vapid-public-key')
+                .then(res => {
+                  if (!res.ok) {
+                    throw new Error('Failed to fetch VAPID key');
+                  }
+                  return res.json();
+                })
+                .then(data => {
+                  const publicVapidKey = data.vapidPublicKey;
+                  
+                  return registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+                  });
+                })
+                .then(subscription => {
+                  // Send subscription to server
+                  console.log('User is subscribed to push notifications');
+                  
+                  // Get device info for better subscription management
+                  const deviceName = getDeviceName();
+                  
+                  // Send the subscription to our server
+                  return fetch('/api/admin/notifications/subscribe', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      subscription,
+                      deviceName
+                    }),
+                    credentials: 'include'
+                  });
+                })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error('Failed to register push subscription with server');
+                  }
+                  console.log('Push subscription successfully registered with server');
+                })
+                .catch(error => {
+                  console.error('Push subscription error:', error);
+                });
+            } else {
+              // Not an admin, don't subscribe
+              console.log('User is not authenticated as admin, skipping push subscription');
+            }
+          })
+          .catch(error => {
+            console.error('Error checking admin status:', error);
+          });
       } else {
         console.log('Notification permission denied');
       }
     });
   }
+}
+
+// Helper function to get device name
+function getDeviceName(): string {
+  const userAgent = navigator.userAgent;
+  let deviceName = 'Unknown Device';
+  
+  // Try to identify the device type
+  if (/iPad/.test(userAgent)) {
+    deviceName = 'iPad';
+  } else if (/iPhone/.test(userAgent)) {
+    deviceName = 'iPhone';
+  } else if (/Android/.test(userAgent)) {
+    deviceName = 'Android Device';
+  } else if (/Windows/.test(userAgent)) {
+    deviceName = 'Windows PC';
+  } else if (/Mac/.test(userAgent)) {
+    deviceName = 'Mac';
+  } else if (/Linux/.test(userAgent)) {
+    deviceName = 'Linux Device';
+  }
+  
+  // Add browser info
+  if (/Chrome/.test(userAgent)) {
+    deviceName += ' - Chrome';
+  } else if (/Firefox/.test(userAgent)) {
+    deviceName += ' - Firefox';
+  } else if (/Safari/.test(userAgent)) {
+    deviceName += ' - Safari';
+  } else if (/Edge/.test(userAgent)) {
+    deviceName += ' - Edge';
+  }
+  
+  return deviceName;
 }
 
 // Helper function to convert URL base64 to Uint8Array
@@ -100,7 +172,36 @@ export function sendTestNotification() {
     return Promise.reject(new Error('Notification permission not granted'));
   }
   
-  // Try to show notification through the service worker
+  // First try the server-side test API, which will send a notification through the push service
+  // This tests the entire notification pipeline including the subscription on the server
+  return fetch('/api/admin/notifications/test', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include'
+  })
+  .then(response => {
+    if (!response.ok) {
+      // If server-side test fails, fall back to local notification
+      console.warn('Server push notification test failed, falling back to local notification');
+      return fallbackToLocalNotification();
+    }
+    
+    return response.json().then(data => {
+      console.log('Push notification test sent successfully:', data);
+      return data;
+    });
+  })
+  .catch(error => {
+    console.error('Error sending push notification test:', error);
+    // Fall back to local notification
+    return fallbackToLocalNotification();
+  });
+}
+
+// Local notification fallback if server push fails
+function fallbackToLocalNotification(): Promise<void> {
   return navigator.serviceWorker.getRegistration()
     .then(registration => {
       if (!registration) {
@@ -119,7 +220,7 @@ export function sendTestNotification() {
       } as NotificationOptions);
     })
     .catch(error => {
-      console.error('Error showing notification:', error);
+      console.error('Error showing local notification:', error);
       return Promise.reject(error);
     });
 }
