@@ -84,20 +84,44 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 // Send a test notification (for testing purposes)
 export function sendTestNotification() {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then(registration => {
-      registration.showNotification('Sip of Eden Admin', {
-        body: 'This is a test notification',
+  // First check if we can access service workers and notifications
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service workers are not supported in this browser');
+    return Promise.reject(new Error('Service workers not supported'));
+  }
+  
+  if (!('Notification' in window)) {
+    console.warn('Notifications are not supported in this browser');
+    return Promise.reject(new Error('Notifications not supported'));
+  }
+  
+  if (Notification.permission !== 'granted') {
+    console.warn('Notification permission not granted');
+    return Promise.reject(new Error('Notification permission not granted'));
+  }
+  
+  // Try to show notification through the service worker
+  return navigator.serviceWorker.getRegistration()
+    .then(registration => {
+      if (!registration) {
+        console.warn('No service worker registration found');
+        return Promise.reject(new Error('No service worker registration found'));
+      }
+      
+      return registration.showNotification('Sip of Eden Admin', {
+        body: 'New order received! Check your dashboard for details.',
         icon: '/icons/icon-192x192.png',
         badge: '/icons/icon-72x72.png',
+        vibrate: [100, 50, 100],
         data: {
-          url: '/admin'
+          url: '/admin/orders'
         }
       } as NotificationOptions);
+    })
+    .catch(error => {
+      console.error('Error showing notification:', error);
+      return Promise.reject(error);
     });
-  } else {
-    console.warn('Notifications are not supported or permission not granted');
-  }
 }
 
 // Function to check if app is installed as PWA

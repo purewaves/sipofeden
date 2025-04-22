@@ -64,7 +64,7 @@ const PwaInstallPrompt = () => {
     };
   }, []);
 
-  // Handle install button click
+  // Enhanced install button click with better fallbacks
   const handleInstall = async () => {
     if (installPrompt) {
       // We have a stored prompt from the beforeinstallprompt event
@@ -80,12 +80,18 @@ const PwaInstallPrompt = () => {
             title: "Installation successful!",
             description: "You can now access the admin dashboard from your home screen.",
           });
+          
+          // Hide the prompt after successful installation
+          setIsVisible(false);
         } else {
           toast({
             title: "Installation dismissed",
             description: "You can install the app later from the menu.",
             variant: "default",
           });
+          
+          // Keep prompt visible for a while longer in case user wants to reconsider
+          setTimeout(() => setIsVisible(false), 5000);
         }
       } catch (err) {
         console.error('Error during installation:', err);
@@ -94,21 +100,69 @@ const PwaInstallPrompt = () => {
           description: "There was a problem installing the app. Please try again.",
           variant: "destructive",
         });
+        
+        // Keep visible in case of error so user can try again
+        setTimeout(() => {
+          toast({
+            title: "Try manual installation",
+            description: "Try installing from your browser's menu if automatic installation fails",
+            duration: 6000,
+          });
+        }, 2000);
       }
       
       // Reset the prompt variable
       setInstallPrompt(null);
-      setIsVisible(false);
     } else {
-      // Manual installation instructions for browsers that don't support beforeinstallprompt
+      // Provide detailed browser-specific instructions for manual installation
+      const browser = detectBrowser();
+      let installInstructions = "In your browser menu, look for 'Install' or 'Add to Home Screen' option";
+      
+      // Provide more specific instructions based on detected browser
+      if (browser === 'chrome') {
+        installInstructions = "Click the menu (⋮) in the top right, then select 'Install Sip of Eden Admin'";
+      } else if (browser === 'edge') {
+        installInstructions = "Click the menu (...) in the top right, then select 'Apps' → 'Install this site as an app'";
+      } else if (browser === 'firefox') {
+        installInstructions = "Look for the home icon in the address bar and click it to install";
+      } else if (browser === 'safari') {
+        installInstructions = "Tap the share icon, then scroll down and tap 'Add to Home Screen'";
+      }
+      
       toast({
-        title: "Manual installation",
-        description: "In your browser menu, look for 'Install' or 'Add to Home Screen' option",
-        duration: 6000,
+        title: "Manual installation required",
+        description: installInstructions,
+        duration: 8000,
       });
       
-      // Keep visible
+      // Show a second toast after a delay with the benefits
+      setTimeout(() => {
+        toast({
+          title: "Benefits of installation",
+          description: "Installing gives you offline access and notifications for new orders",
+          duration: 6000,
+        });
+      }, 8500);
+      
+      // Keep visible but update state to show we've provided instructions
       setIsVisible(true);
+    }
+  };
+  
+  // Simple browser detection function
+  const detectBrowser = (): string => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    if (userAgent.indexOf('chrome') > -1 && userAgent.indexOf('edge') === -1) {
+      return 'chrome';
+    } else if (userAgent.indexOf('edge') > -1 || userAgent.indexOf('edg') > -1) {
+      return 'edge';
+    } else if (userAgent.indexOf('firefox') > -1) {
+      return 'firefox';
+    } else if (userAgent.indexOf('safari') > -1 && userAgent.indexOf('chrome') === -1) {
+      return 'safari';
+    } else {
+      return 'other';
     }
   };
 
