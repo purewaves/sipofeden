@@ -20,7 +20,12 @@ const PwaInstallPrompt = () => {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  // Force show the prompt for admin users (for testing purposes)
+  // Remove this in production when the real install prompt is working
   useEffect(() => {
+    // Check if we're in the admin section
+    const isAdminPage = window.location.pathname.startsWith('/admin');
+    
     // Check if the app is already installed
     const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
     
@@ -29,6 +34,21 @@ const PwaInstallPrompt = () => {
       return;
     }
 
+    if (isAdminPage) {
+      // Show prompt automatically after 3 seconds for admin users
+      const timer = setTimeout(() => {
+        // Only show if we're not already showing it from the event handler
+        if (!isVisible) {
+          setIsVisible(true);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]);
+
+  // Regular PWA install prompt handling
+  useEffect(() => {
     // Store the install prompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -46,32 +66,50 @@ const PwaInstallPrompt = () => {
 
   // Handle install button click
   const handleInstall = async () => {
-    if (!installPrompt) {
-      return;
-    }
-
-    // Show the install prompt
-    await installPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
-    const choiceResult = await installPrompt.userChoice;
-    
-    if (choiceResult.outcome === 'accepted') {
-      toast({
-        title: "Installation successful!",
-        description: "You can now access the admin dashboard from your home screen.",
-      });
+    if (installPrompt) {
+      // We have a stored prompt from the beforeinstallprompt event
+      try {
+        // Show the install prompt
+        await installPrompt.prompt();
+        
+        // Wait for the user to respond to the prompt
+        const choiceResult = await installPrompt.userChoice;
+        
+        if (choiceResult.outcome === 'accepted') {
+          toast({
+            title: "Installation successful!",
+            description: "You can now access the admin dashboard from your home screen.",
+          });
+        } else {
+          toast({
+            title: "Installation dismissed",
+            description: "You can install the app later from the menu.",
+            variant: "default",
+          });
+        }
+      } catch (err) {
+        console.error('Error during installation:', err);
+        toast({
+          title: "Installation error",
+          description: "There was a problem installing the app. Please try again.",
+          variant: "destructive",
+        });
+      }
+      
+      // Reset the prompt variable
+      setInstallPrompt(null);
+      setIsVisible(false);
     } else {
+      // Manual installation instructions for browsers that don't support beforeinstallprompt
       toast({
-        title: "Installation dismissed",
-        description: "You can install the app later from the menu.",
-        variant: "default",
+        title: "Manual installation",
+        description: "In your browser menu, look for 'Install' or 'Add to Home Screen' option",
+        duration: 6000,
       });
+      
+      // Keep visible
+      setIsVisible(true);
     }
-
-    // Reset the prompt variable
-    setInstallPrompt(null);
-    setIsVisible(false);
   };
 
   // Skip the installation

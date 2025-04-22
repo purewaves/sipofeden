@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sip-of-eden-admin-v1';
+const CACHE_NAME = 'sip-of-eden-admin-v2'; // Updated version to force cache refresh
 const CACHE_URLS = [
   '/',
   '/admin',

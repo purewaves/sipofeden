@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Home, Package, ShoppingCart, Users, BarChart3, LogOut, CalendarRange } from "lucide-react";
+import { Home, Package, ShoppingCart, Users, BarChart3, LogOut, CalendarRange, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import PwaInstallPrompt from "@/components/admin/PwaInstallPrompt";
+import { sendTestNotification, isPwaInstalled } from "@/lib/serviceWorker";
 
 interface AdminLayoutProps {
   children: React.ReactNode;

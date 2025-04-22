@@ -3,19 +3,30 @@
 // Register service worker
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .then(registration => {
-          console.log('Service Worker registered with scope:', registration.scope);
-          
-          // Subscribe to push notifications if available
-          subscribeToPushNotifications(registration);
-        })
-        .catch(error => {
-          console.error('Service Worker registration failed:', error);
-        });
-    });
+    // Execute immediately instead of waiting for load event
+    // This helps ensure the service worker is registered early
+    console.log('Attempting to register service worker...');
+    
+    // The service worker URL must be absolute from the origin
+    navigator.serviceWorker
+      .register('/service-worker.js', { 
+        scope: '/',
+        updateViaCache: 'none' // Bypass cache for updates
+      })
+      .then(registration => {
+        console.log('Service Worker registered with scope:', registration.scope);
+        
+        // Force update check on each registration
+        registration.update();
+        
+        // Subscribe to push notifications if available
+        subscribeToPushNotifications(registration);
+      })
+      .catch(error => {
+        console.error('Service Worker registration failed:', error);
+      });
+  } else {
+    console.warn('Service workers are not supported in this browser');
   }
 }
 
