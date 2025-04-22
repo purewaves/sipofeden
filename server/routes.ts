@@ -1072,6 +1072,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedItems = z.array(insertOrderItemSchema).parse(items);
       
       const newOrder = await storage.createOrder(validatedOrder, validatedItems);
+      
+      // Send notification to admin about new order
+      try {
+        const { sendNewOrderNotification } = require('./notifications');
+        await sendNewOrderNotification(newOrder);
+        console.log("New order notification sent to admin");
+      } catch (notifError) {
+        // Don't fail if notification sending fails
+        console.error("Failed to send new order notification:", notifError);
+      }
       res.status(201).json(newOrder);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1120,9 +1130,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Status is required" });
       }
       
+      // Get the current order to track status change
+      const currentOrder = await storage.getOrderById(id);
+      if (!currentOrder) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      const previousStatus = currentOrder.status;
+      
+      // Update the order status
       const updatedOrder = await storage.updateOrderStatus(id, status);
       if (!updatedOrder) {
         return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Send status change notification to admin if status actually changed
+      if (previousStatus !== status) {
+        try {
+          const { sendOrderStatusNotification } = require('./notifications');
+          await sendOrderStatusNotification(updatedOrder, previousStatus);
+          console.log(`Order status notification sent: ${previousStatus} -> ${status}`);
+        } catch (notifError) {
+          // Don't fail if notification sending fails
+          console.error("Failed to send order status notification:", notifError);
+        }
       }
       
       res.json(updatedOrder);
@@ -1164,7 +1195,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Notification APIs
+  app.get("/api/admin/notifications/vapid-public-key", isAdminAuthenticated, (req: Request, res: Response) => {
+    try {
+      // Import the webPush module - make sure it's installed
+      const { getPublicVapidKey } = require('./webPush');
+      
+      // Get the VAPID public key
+      const vapidPublicKey = getPublicVapidKey();
+      
+      res.json({ vapidPublicKey });
+    } catch (error) {
+      console.error("Error getting VAPID public key:", error);
+      res.status(500).json({ message: "Failed to get VAPID public key" });
+    }
+  });
+  
+  app.post("/api/admin/notifications/subscribe", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session || !req.session.adminId) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+      
+      // Validate subscription data
+      const { subscription, deviceName } = req.body;
+      
+      if (!subscription) {
+        return res.status(400).json({ message: "Subscription data is required" });
+      }
+      
+      // Save subscription with admin ID, convert subscription object to string
+      const subscriptionData = typeof subscription === 'string' 
+        ? subscription 
+        : JSON.stringify(subscription);
+      
+      const savedSubscription = await storage.saveNotificationSubscription(
+        req.session.adminId, 
+        subscriptionData,
+        req.headers['user-agent'],
+        deviceName
+      );
+      
+      res.status(201).json({ 
+        message: "Subscription saved successfully",
+        subscription: savedSubscription 
+      });
+    } catch (error) {
+      console.error("Error saving notification subscription:", error);
+      res.status(500).json({ 
+        message: "Failed to save subscription",
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
+  app.get("/api/admin/notifications/subscriptions", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session || !req.session.adminId) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+      
+      const subscriptions = await storage.getAdminNotificationSubscriptions(req.session.adminId);
+      
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Error fetching notification subscriptions:", error);
+      res.status(500).json({ message: "Failed to fetch notification subscriptions" });
+    }
+  });
+  
+  app.delete("/api/admin/notifications/subscriptions/:id", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session || !req.session.adminId) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid subscription ID" });
+      }
+      
+      const deleted = await storage.deleteNotificationSubscription(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Subscription not found" });
+      }
+      
+      res.json({ message: "Subscription deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting notification subscription:", error);
+      res.status(500).json({ message: "Failed to delete notification subscription" });
+    }
+  });
+  
+  app.post("/api/admin/notifications/test", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session || !req.session.adminId) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+      
+      // Import the notification service
+      const { sendAdminNotification } = require('./notifications');
+      
+      // Send a test notification to all subscriptions for this admin
+      const title = "Test Notification";
+      const body = "This is a test notification from Sip of Eden";
+      const url = "/admin/dashboard";
+      
+      const results = await sendAdminNotification(title, body, url);
+      
+      res.json({ 
+        message: "Test notification sent",
+        results
+      });
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      res.status(500).json({ 
+        message: "Failed to send test notification",
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
+  
+  // Configure additional server settings here if needed
+  
   return httpServer;
 }

@@ -11,8 +11,9 @@ import {
   LoyaltyReward, InsertLoyaltyReward,
   LoyaltyActivity, InsertLoyaltyActivity,
   WebsiteSettings, UpdateWebsiteSettings,
+  AdminNotificationSubscription, UpdateAdminNotificationSubscription,
   juices, cartItems, subscriptionPlans, subscriptions, bundles, admins, orders, orderItems,
-  loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings
+  loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings, adminNotificationSubscriptions
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
