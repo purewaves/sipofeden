@@ -136,44 +136,8 @@ const AdminDashboard = () => {
     queryKey: ['/api/admin/orders'],
   });
   
-  // Query for notification subscriptions
-  const { data: notificationSubscriptions, isLoading: isLoadingSubscriptions, refetch: refetchSubscriptions } = useQuery<AdminNotificationSubscription[]>({
-    queryKey: ['/api/admin/notifications/subscriptions'],
-    enabled: isAuthenticated,
-  });
-  
   // Query client for cache invalidation
   const queryClient = useQueryClient();
-  
-  // Mutation for deleting notification subscriptions
-  const deleteSubscriptionMutation = useMutation({
-    mutationFn: async (subscriptionId: number) => {
-      const response = await apiRequest(
-        'DELETE',
-        `/api/admin/notifications/subscriptions/${subscriptionId}`
-      );
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/notifications/subscriptions'] });
-      toast({
-        title: "Subscription removed",
-        description: "The notification subscription has been removed.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to remove subscription: ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Handle subscription deletion
-  const handleDeleteSubscription = (subscriptionId: number) => {
-    deleteSubscriptionMutation.mutate(subscriptionId);
-  };
 
   if (!isAuthenticated) {
     return null;
@@ -411,7 +375,7 @@ const AdminDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Admin Notification Management</CardTitle>
-                <CardDescription>Manage your order notification subscriptions for this PWA</CardDescription>
+                <CardDescription>Enable real-time order notifications</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-4">
@@ -427,58 +391,6 @@ const AdminDashboard = () => {
                     <Bell className="h-4 w-4" />
                     {Notification.permission === 'granted' ? 'Test Notification' : 'Enable Notifications'}
                   </Button>
-                </div>
-                <div className="overflow-x-auto mt-4">
-                  <h3 className="text-md font-medium mb-2">Active Device Subscriptions</h3>
-                  {isLoadingSubscriptions ? (
-                    <div className="space-y-3">
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 border rounded-md">
-                          <Skeleton className="h-8 w-8 rounded-md" />
-                          <div className="flex-1">
-                            <Skeleton className="h-5 w-36 mb-1" />
-                            <Skeleton className="h-4 w-24" />
-                          </div>
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : notificationSubscriptions && notificationSubscriptions.length > 0 ? (
-                    <div className="space-y-2">
-                      {notificationSubscriptions.map((subscription) => (
-                        <div key={subscription.id} className="flex items-center gap-3 p-3 border rounded-md hover:bg-gray-50">
-                          <div className="rounded-md bg-gray-100 p-2">
-                            <Smartphone className="h-5 w-5 text-gray-600" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium">{subscription.deviceName || 'Unknown Device'}</div>
-                            <div className="text-xs text-gray-500">
-                              {typeof subscription.createdAt === 'string' ? new Date(subscription.createdAt).toLocaleDateString() : 'Unknown date'} · 
-                              {subscription.active ? 
-                                <span className="text-green-600 ml-1">Active</span> : 
-                                <span className="text-gray-500 ml-1">Inactive</span>
-                              }
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteSubscription(subscription.id)}
-                            disabled={deleteSubscriptionMutation.isPending}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-gray-500 border rounded-md">
-                      <Bell className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                      <p>No notification subscriptions found</p>
-                      <p className="text-sm mt-1">Click "Enable Notifications" to receive order notifications</p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
