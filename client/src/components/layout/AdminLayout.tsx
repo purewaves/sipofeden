@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Home, Package, ShoppingCart, Users, BarChart3, LogOut, CalendarRange } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import PwaInstallPrompt from "@/components/admin/PwaInstallPrompt";
 
 interface AdminLayoutProps {
   children: React.ReactNode;

@@ -1,29 +1,32 @@
-// Service Worker for Sip of Eden Admin Dashboard
 const CACHE_NAME = 'sip-of-eden-admin-v1';
-const OFFLINE_PAGE = '/admin/offline.html';
-const ASSETS_TO_CACHE = [
+const CACHE_URLS = [
   '/',
   '/admin',
-  OFFLINE_PAGE,
+  '/admin/offline.html',
   '/manifest.json',
+  '/icons/icon-72x72.png',
+  '/icons/icon-96x96.png',
+  '/icons/icon-128x128.png',
+  '/icons/icon-144x144.png',
+  '/icons/icon-152x152.png',
   '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/assets/logo.jpg'
+  '/icons/icon-384x384.png',
+  '/icons/icon-512x512.png'
 ];
 
-// Install event - Cache static assets
+// Service worker installation - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(ASSETS_TO_CACHE);
+        console.log('Cache opened');
+        return cache.addAll(CACHE_URLS);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - Clean up old caches
+// Service worker activation - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -39,45 +42,69 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - Network first, falling back to cache
+// Network first strategy with fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
     return;
   }
 
-  // Skip API requests - these should always be fresh
-  if (event.request.url.includes('/api/')) {
+  // Skip browser-extension requests and non-HTTP(S) requests
+  const url = new URL(event.request.url);
+  if (!(url.protocol.startsWith('http'))) {
     return;
   }
 
+  // Handle API requests - network only for fresh data
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          // If network fails for API, return a basic offline response
+          return new Response(
+            JSON.stringify({ error: 'You are offline. Please check your connection.' }),
+            {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        })
+    );
+    return;
+  }
+
+  // For all other requests, try network first, then cache
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses for non-API requests
-        if (response.status === 200 && !event.request.url.includes('/api/')) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+        // If we got a valid response, clone it and update cache
+        if (response && response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
         }
         return response;
       })
       .catch(() => {
-        // If network request fails, try to serve from cache
+        // If network fails, try cache
         return caches.match(event.request)
-          .then((response) => {
-            if (response) {
-              return response;
+          .then((cachedResponse) => {
+            // If we have cached response, return it
+            if (cachedResponse) {
+              return cachedResponse;
             }
             
-            // If request is for a page, show offline page
+            // If it wasn't in cache and we're navigating to a page,
+            // show the offline page
             if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_PAGE);
+              return caches.match('/admin/offline.html');
             }
             
-            return new Response('Network error happened', {
-              status: 408,
+            // If all else fails, return a fallback
+            return new Response('Network request failed and no cache available.', {
+              status: 503,
               headers: { 'Content-Type': 'text/plain' }
             });
           });
@@ -85,67 +112,41 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push event - Handle notifications
+// Handle push notifications
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  
-  try {
-    const notification = event.data.json();
-    
-    const options = {
-      body: notification.body || 'New notification from Sip of Eden',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      data: notification.data || {},
-      actions: notification.actions || [],
-      vibrate: [100, 50, 100],
-      timestamp: notification.timestamp || Date.now()
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(
-        notification.title || 'Sip of Eden Notification', 
-        options
-      )
-    );
-  } catch (err) {
-    console.error('Error processing push notification:', err);
-  }
+  const data = event.data.json();
+  const options = {
+    body: data.body || 'New notification',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/admin'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Sip of Eden Admin', options)
+  );
 });
 
-// Notification click event - Open relevant page
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Get notification data
-  const data = event.notification.data;
-  let targetUrl = '/admin';
-  
-  // Handle different notification types
-  if (data.type === 'new_order') {
-    targetUrl = `/admin/orders/${data.orderId}`;
-  } else if (data.type === 'inventory_alert') {
-    targetUrl = '/admin/products';
-  } else if (data.type === 'customer_message') {
-    targetUrl = '/admin/messages';
-  } else if (data.url) {
-    targetUrl = data.url;
-  }
-  
   event.waitUntil(
-    clients.matchAll({type: 'window'})
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // If a window is already open, focus it and navigate
+        // If there's an open window with the target URL, focus it
         for (const client of clientList) {
-          if (client.url.includes('/admin') && 'focus' in client) {
-            client.focus();
-            client.navigate(targetUrl);
-            return;
+          if (client.url === event.notification.data.url && 'focus' in client) {
+            return client.focus();
           }
         }
-        // If no window is open, open a new one
+        
+        // Otherwise, open a new window
         if (clients.openWindow) {
-          return clients.openWindow(targetUrl);
+          return clients.openWindow(event.notification.data.url);
         }
       })
   );
