@@ -183,6 +183,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           {children}
         </main>
       </div>
+
+      {/* PWA Installation Prompt */}
+      <PwaInstallPrompt />
     </div>
   );
 };
