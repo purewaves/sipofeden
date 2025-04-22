@@ -132,7 +132,9 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
         if (data.name) requestBody.name = data.name;
         if (data.description) requestBody.description = data.description;
         if (data.price !== undefined) requestBody.price = data.price;
-        if (data.imageUrl) requestBody.imageUrl = data.imageUrl;
+        // IMPORTANT: Always include imageUrl in the request body, even if it's unchanged
+        // This ensures we don't lose the image when updating other fields
+        requestBody.imageUrl = data.imageUrl || initialData?.imageUrl || "";
         if (data.category) requestBody.category = data.category;
         if (data.stock !== undefined) requestBody.stock = data.stock;
         if (data.featured !== undefined) requestBody.featured = data.featured;
