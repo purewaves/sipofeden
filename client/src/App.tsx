@@ -9,7 +9,6 @@ import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
 import Subscribe from "@/pages/Subscribe";
 import Checkout from "@/pages/Checkout";
-import Loyalty from "@/pages/Loyalty";
 import JuiceChat from "@/pages/JuiceChat";
 import NotFound from "@/pages/not-found";
 
@@ -18,7 +17,6 @@ import AdminLogin from "@/pages/Admin/Login";
 import AdminDashboard from "@/pages/Admin/Dashboard";
 import AdminProducts from "@/pages/Admin/Products";
 import AdminOrders from "@/pages/Admin/Orders";
-import AdminLoyalty from "@/pages/Admin/Loyalty";
 import AdminSubscriptions from "@/pages/Admin/Subscriptions";
 import AdminProfile from "@/pages/Admin/Profile";
 
@@ -47,7 +45,6 @@ function Router() {
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/subscribe" component={Subscribe} />
           <Route path="/checkout" component={Checkout} />
-          <Route path="/loyalty" component={Loyalty} />
           <Route path="/juice-chat" component={JuiceChat} />
           
           {/* Admin Routes */}
@@ -56,7 +53,6 @@ function Router() {
           <Route path="/admin/products" component={AdminProducts} />
           <Route path="/admin/orders" component={AdminOrders} />
           <Route path="/admin/subscriptions" component={AdminSubscriptions} />
-          <Route path="/admin/loyalty" component={AdminLoyalty} />
           <Route path="/admin/profile" component={AdminProfile} />
           
           {/* Fallback */}

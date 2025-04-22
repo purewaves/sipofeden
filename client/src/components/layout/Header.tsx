@@ -40,9 +40,6 @@ const Header = () => {
             <Link href="/subscribe">
               <div className="font-medium hover:text-primary transition-colors cursor-pointer">Subscribe</div>
             </Link>
-            <Link href="/loyalty">
-              <div className="font-medium hover:text-primary transition-colors cursor-pointer">Loyalty</div>
-            </Link>
             <Link href="/juice-chat">
               <div className="font-medium hover:text-primary transition-colors cursor-pointer flex items-center">
                 <MessageCircle className="h-4 w-4 mr-1" /> Juice Chat
@@ -94,11 +91,6 @@ const Header = () => {
               <Link href="/subscribe">
                 <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
                   Subscribe
-                </div>
-              </Link>
-              <Link href="/loyalty">
-                <div className="font-medium hover:text-primary transition-colors cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
-                  Loyalty
                 </div>
               </Link>
               <Link href="/juice-chat">

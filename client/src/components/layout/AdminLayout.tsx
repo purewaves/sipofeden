@@ -95,7 +95,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { label: "Products", href: "/admin/products", icon: <Package className="h-5 w-5" /> },
     { label: "Orders", href: "/admin/orders", icon: <ShoppingCart className="h-5 w-5" /> },
     { label: "Subscriptions", href: "/admin/subscriptions", icon: <CalendarRange className="h-5 w-5" /> },
-    { label: "Loyalty", href: "/admin/loyalty", icon: <Users className="h-5 w-5" /> },
+    { label: "Profile", href: "/admin/profile", icon: <Users className="h-5 w-5" /> },
   ];
 
   return (
