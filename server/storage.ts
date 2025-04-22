@@ -84,6 +84,12 @@ export interface IStorage {
   getWebsiteSettings(): Promise<WebsiteSettings>;
   updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings>;
   
+  // Admin Notification Subscriptions
+  saveNotificationSubscription(adminId: number, subscription: string, userAgent?: string, deviceName?: string): Promise<AdminNotificationSubscription>;
+  getAdminNotificationSubscriptions(adminId: number): Promise<AdminNotificationSubscription[]>;
+  updateNotificationSubscription(id: number, data: UpdateAdminNotificationSubscription): Promise<AdminNotificationSubscription | undefined>;
+  deleteNotificationSubscription(id: number): Promise<boolean>;
+  
   sessionStore: session.Store;
 }
 
@@ -750,6 +756,116 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result[0];
+  }
+  
+  // Admin Notification Subscriptions
+  async saveNotificationSubscription(
+    adminId: number, 
+    subscription: string, 
+    userAgent?: string, 
+    deviceName?: string
+  ): Promise<AdminNotificationSubscription> {
+    try {
+      console.log(`Saving notification subscription for admin ID ${adminId}`);
+      
+      // Check if admin exists
+      const admin = await this.getAdminById(adminId);
+      if (!admin) {
+        throw new Error(`Admin with ID ${adminId} not found`);
+      }
+      
+      // Check if subscription already exists for this admin/device
+      const existingSubscriptions = await db.select()
+        .from(adminNotificationSubscriptions)
+        .where(
+          and(
+            eq(adminNotificationSubscriptions.adminId, adminId),
+            eq(adminNotificationSubscriptions.subscription, subscription)
+          )
+        );
+      
+      // If it exists, update it
+      if (existingSubscriptions.length > 0) {
+        console.log(`Updating existing subscription for admin ID ${adminId}`);
+        const [updatedSubscription] = await db.update(adminNotificationSubscriptions)
+          .set({
+            active: true,
+            lastUsedAt: new Date(),
+            userAgent: userAgent || existingSubscriptions[0].userAgent,
+            deviceName: deviceName || existingSubscriptions[0].deviceName
+          })
+          .where(eq(adminNotificationSubscriptions.id, existingSubscriptions[0].id))
+          .returning();
+        
+        return updatedSubscription;
+      }
+      
+      // Otherwise, create a new one
+      console.log(`Creating new subscription for admin ID ${adminId}`);
+      const [newSubscription] = await db.insert(adminNotificationSubscriptions)
+        .values({
+          adminId,
+          subscription,
+          userAgent,
+          deviceName: deviceName || `Device ${Math.floor(Math.random() * 1000)}`,
+          active: true
+        })
+        .returning();
+      
+      return newSubscription;
+    } catch (error) {
+      console.error('Error saving notification subscription:', error);
+      throw error;
+    }
+  }
+  
+  async getAdminNotificationSubscriptions(adminId: number): Promise<AdminNotificationSubscription[]> {
+    try {
+      return db.select()
+        .from(adminNotificationSubscriptions)
+        .where(
+          and(
+            eq(adminNotificationSubscriptions.adminId, adminId),
+            eq(adminNotificationSubscriptions.active, true)
+          )
+        );
+    } catch (error) {
+      console.error('Error getting admin notification subscriptions:', error);
+      throw error;
+    }
+  }
+  
+  async updateNotificationSubscription(
+    id: number, 
+    data: UpdateAdminNotificationSubscription
+  ): Promise<AdminNotificationSubscription | undefined> {
+    try {
+      const [updatedSubscription] = await db.update(adminNotificationSubscriptions)
+        .set({
+          ...data,
+          lastUsedAt: new Date()
+        })
+        .where(eq(adminNotificationSubscriptions.id, id))
+        .returning();
+      
+      return updatedSubscription;
+    } catch (error) {
+      console.error('Error updating notification subscription:', error);
+      throw error;
+    }
+  }
+  
+  async deleteNotificationSubscription(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(adminNotificationSubscriptions)
+        .where(eq(adminNotificationSubscriptions.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting notification subscription:', error);
+      throw error;
+    }
   }
 }
 

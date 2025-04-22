@@ -307,3 +307,31 @@ export const updateWebsiteSettingsSchema = createInsertSchema(websiteSettings).o
 
 export type WebsiteSettings = typeof websiteSettings.$inferSelect;
 export type UpdateWebsiteSettings = z.infer<typeof updateWebsiteSettingsSchema>;
+
+// Admin Notification Subscriptions
+export const adminNotificationSubscriptions = pgTable("admin_notification_subscriptions", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").references(() => admins.id, { onDelete: 'cascade' }),
+  subscription: text("subscription").notNull(), // JSON string of PushSubscription object
+  userAgent: text("user_agent"), // Browser user agent info
+  deviceName: text("device_name"), // Custom device name (optional)
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
+});
+
+export const adminNotificationSubscriptionsRelations = relations(adminNotificationSubscriptions, ({ one }) => ({
+  admin: one(admins, {
+    fields: [adminNotificationSubscriptions.adminId],
+    references: [admins.id]
+  })
+}));
+
+export type AdminNotificationSubscription = typeof adminNotificationSubscriptions.$inferSelect;
+export type InsertAdminNotificationSubscription = typeof adminNotificationSubscriptions.$inferInsert;
+export const insertAdminNotificationSubscriptionSchema = createInsertSchema(adminNotificationSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  lastUsedAt: true
+});
+export type UpdateAdminNotificationSubscription = Partial<Omit<InsertAdminNotificationSubscription, 'id'>>;
