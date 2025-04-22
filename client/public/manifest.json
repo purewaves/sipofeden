@@ -1,11 +1,12 @@
 {
   "name": "Sip of Eden Admin",
-  "short_name": "SipEden Admin",
+  "short_name": "SoE Admin",
   "description": "Admin dashboard for Sip of Eden juice store",
   "start_url": "/admin",
   "display": "standalone",
   "background_color": "#FFEDD5",
-  "theme_color": "#FDBA74",
+  "theme_color": "#F97316",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
