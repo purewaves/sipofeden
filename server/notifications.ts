@@ -53,7 +53,7 @@ export async function sendAdminNotification(
         console.error(`Error sending notification to subscription ${subscription.id}:`, error);
         
         // Check if the subscription is no longer valid (gone)
-        if (error.statusCode === 410) {
+        if (typeof error === 'object' && error !== null && 'statusCode' in error && error.statusCode === 410) {
           console.log(`Subscription ${subscription.id} is no longer valid, marking as inactive`);
           await db.update(adminNotificationSubscriptions)
             .set({ active: false })

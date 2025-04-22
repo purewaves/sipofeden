@@ -453,7 +453,7 @@ const AdminDashboard = () => {
                           <div className="flex-1">
                             <div className="font-medium">{subscription.deviceName || 'Unknown Device'}</div>
                             <div className="text-xs text-gray-500">
-                              {new Date(subscription.createdAt).toLocaleDateString()} · 
+                              {typeof subscription.createdAt === 'string' ? new Date(subscription.createdAt).toLocaleDateString() : 'Unknown date'} · 
                               {subscription.active ? 
                                 <span className="text-green-600 ml-1">Active</span> : 
                                 <span className="text-gray-500 ml-1">Inactive</span>
@@ -518,11 +518,11 @@ const AdminDashboard = () => {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis 
-                            tickFormatter={(value) => `₦${value/1000}k`}
+                            tickFormatter={(value: number) => `₦${value/1000}k`}
                           />
                           <Tooltip 
-                            formatter={(value) => [`₦${new Intl.NumberFormat('en-NG').format(value)}`, 'Sales']} 
-                            labelFormatter={(label) => `Month: ${label}`}
+                            formatter={(value: number) => [`₦${new Intl.NumberFormat('en-NG').format(value)}`, 'Sales']} 
+                            labelFormatter={(label: string) => `Month: ${label}`}
                           />
                           <Legend />
                           <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
