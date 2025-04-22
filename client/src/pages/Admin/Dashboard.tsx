@@ -7,13 +7,64 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { Juice, Order } from "@shared/schema";
 import { formatCurrency, getStockStatus, getStockStatusClass, formatDate } from "@/lib/utils";
-import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp, ArrowDown, Truck, Package, Leaf } from "lucide-react";
+import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp, ArrowDown, Truck, Package, Leaf, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { sendTestNotification, isPwaInstalled } from "@/lib/serviceWorker";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
   const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [isPwa, setIsPwa] = useState(false);
+
+  // Check if running as PWA
+  useEffect(() => {
+    setIsPwa(isPwaInstalled());
+  }, []);
+
+  // Handle notification test
+  const handleTestNotification = () => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        sendTestNotification();
+        toast({
+          title: "Notification sent",
+          description: "Test notification has been sent to your device.",
+        });
+      } else if (Notification.permission === 'denied') {
+        toast({
+          title: "Notifications blocked",
+          description: "Please enable notifications in your browser settings.",
+          variant: "destructive",
+        });
+      } else {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            sendTestNotification();
+            toast({
+              title: "Notification sent",
+              description: "Test notification has been sent to your device.",
+            });
+          } else {
+            toast({
+              title: "Notification permission denied",
+              description: "You won't receive notifications from this app.",
+              variant: "destructive",
+            });
+          }
+        });
+      }
+    } else {
+      toast({
+        title: "Notifications not supported",
+        description: "Your browser doesn't support notifications.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -45,7 +96,16 @@ const AdminDashboard = () => {
       
       <main className="container mx-auto px-4 py-8">
         <section className="mb-10">
-          <h1 className="font-heading text-2xl font-semibold mb-6">Dashboard</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="font-heading text-2xl font-semibold">Dashboard</h1>
+            <Button 
+              onClick={handleTestNotification}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
+            >
+              <Bell className="h-4 w-4" />
+              Test PWA Notification
+            </Button>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {/* Total Sales Card */}
