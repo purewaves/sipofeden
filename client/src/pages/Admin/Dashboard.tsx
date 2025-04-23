@@ -1,20 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Juice, Order, AdminNotificationSubscription } from "@shared/schema";
-import { formatCurrency, getStockStatus, getStockStatusClass, formatDate } from "@/lib/utils";
-import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp, ArrowDown, Truck, Package, Leaf, Bell, Trash2, Smartphone } from "lucide-react";
+import { Juice, Order } from "@shared/schema";
+import { formatCurrency, getStockStatus, getStockStatusClass } from "@/lib/utils";
+import { DollarSign, ShoppingBag, Users, RefreshCcw, ArrowUp, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { sendTestNotification, isPwaInstalled } from "@/lib/serviceWorker";
+import { sendTestNotification } from "@/lib/serviceWorker";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AdminDashboard = () => {
   const [, navigate] = useLocation();
@@ -24,7 +23,12 @@ const AdminDashboard = () => {
 
   // Check if running as PWA
   useEffect(() => {
-    setIsPwa(isPwaInstalled());
+    // Simple function to check if app is installed as PWA
+    const checkIfPwa = () => {
+      return window.matchMedia('(display-mode: standalone)').matches || 
+             (window.navigator as any).standalone === true;
+    };
+    setIsPwa(checkIfPwa());
   }, []);
 
   // Handle notification test
