@@ -31,27 +31,24 @@ const AdminDashboard = () => {
     setIsPwa(checkIfPwa());
   }, []);
 
-  // Handle notification test
-  // Enhanced notification handling with robust fallbacks
+  // Handle notification test with comprehensive error handling
   const handleTestNotification = () => {
-    // Simulate a notification if we're in an environment that doesn't support notifications
-    // This function ensures a notification-like experience for all users
+    // Simulate a notification for browsers without notification support
     const showSimulatedNotification = () => {
-      // First show a toast about the simulation
       toast({
         title: "Simulated Notification",
-        description: "This environment doesn't fully support native notifications. Using simulated notifications instead.",
+        description: "This environment doesn't support native notifications. Using simulated notifications instead.",
         duration: 3000,
       });
       
-      // Then after a short delay, show the actual simulated notification content
+      // After a short delay, show the simulated content
       setTimeout(() => {
         toast({
           title: "📋 New Order Received",
           description: "A customer just placed an order for Tropical Blend! Check the orders page for details.",
           duration: 5000,
         });
-      }, 3500);
+      }, 2000);
     };
     
     // First check if service workers are available
@@ -61,68 +58,84 @@ const AdminDashboard = () => {
       return;
     }
     
-    // Then check if notifications are supported
+    // Then check if Notification API is available in this browser
     if (!('Notification' in window)) {
-      console.warn('Notifications API not supported in this browser');
+      console.warn('Notification API not supported in this browser');
       showSimulatedNotification();
       return;
     }
     
-    // Check notification permission status
-    if (Notification.permission === 'granted') {
-      // We have permission, try to send a real notification
-      sendTestNotification()
-        .then(() => {
-          toast({
-            title: "Notification sent",
-            description: "A test notification has been sent to your device!",
-          });
-        })
-        .catch(error => {
-          console.error('Error sending notification:', error);
-          // Fall back to a simulated notification
-          showSimulatedNotification();
-        });
-    } else if (Notification.permission === 'denied') {
-      // Permission was explicitly denied
-      toast({
-        title: "Notifications blocked",
-        description: "Please enable notifications in your browser settings to receive order alerts.",
-        variant: "destructive",
-        duration: 5000,
-      });
+    // Safely access the Notification API
+    try {
+      // Get current notification permission
+      const currentPermission = window.Notification.permission;
       
-      // Still show a simulated notification after a delay so user sees what they're missing
-      setTimeout(showSimulatedNotification, 1000);
-    } else {
-      // Permission hasn't been requested yet, let's ask
-      Notification.requestPermission()
-        .then(permission => {
-          if (permission === 'granted') {
-            // User granted permission, send a notification
-            return sendTestNotification()
-              .then(() => {
-                toast({
-                  title: "Notification permission granted!",
-                  description: "You will now receive notifications for new orders.",
-                });
-              });
-          } else {
-            // User denied permission
+      if (currentPermission === 'granted') {
+        // We already have permission, send a notification
+        sendTestNotification()
+          .then(() => {
             toast({
-              title: "Notification permission denied",
-              description: "You'll still receive simulated notifications within the app.",
-              variant: "default",
+              title: "Notification Sent",
+              description: "A test notification has been sent to your device!",
             });
-            
-            // Show a simulated notification
-            setTimeout(showSimulatedNotification, 1000);
-          }
-        })
-        .catch(error => {
-          console.error('Error requesting notification permission:', error);
-          showSimulatedNotification();
+          })
+          .catch(error => {
+            console.error('Error sending notification:', error);
+            showSimulatedNotification();
+          });
+      } else if (currentPermission === 'denied') {
+        // User previously denied permission
+        toast({
+          title: "Notifications Blocked",
+          description: "Please enable notifications in your browser settings to receive order alerts.",
+          variant: "destructive",
+          duration: 5000,
         });
+        
+        // Show simulated notification anyway
+        setTimeout(showSimulatedNotification, 1000);
+      } else {
+        // Permission not determined yet, request it
+        try {
+          window.Notification.requestPermission()
+            .then(permission => {
+              if (permission === 'granted') {
+                // User just granted permission
+                sendTestNotification()
+                  .then(() => {
+                    toast({
+                      title: "Notification Permission Granted!",
+                      description: "You will now receive notifications for new orders.",
+                    });
+                  })
+                  .catch(err => {
+                    console.error("Error sending test notification after permission granted:", err);
+                    showSimulatedNotification();
+                  });
+              } else {
+                // User denied the permission request
+                toast({
+                  title: "Notification Permission Denied",
+                  description: "You'll still receive simulated notifications within the app.",
+                  variant: "default",
+                });
+                
+                setTimeout(showSimulatedNotification, 1000);
+              }
+            })
+            .catch(err => {
+              console.error("Error requesting notification permission:", err);
+              showSimulatedNotification();
+            });
+        } catch (err) {
+          console.error("Error in notification permission request:", err);
+          showSimulatedNotification();
+        }
+      }
+    } catch (error) {
+      // If any error occurs with the Notification API, fall back to simulated
+      console.error("Error using Notification API:", error);
+      showSimulatedNotification();
     }
   };
 
