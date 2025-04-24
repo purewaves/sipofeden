@@ -1093,7 +1093,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send notification to admin about new order
       try {
-        const { sendNewOrderNotification } = require('./notifications');
         await sendNewOrderNotification(newOrder);
         console.log("New order notification sent to admin");
       } catch (notifError) {
@@ -1165,7 +1164,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send status change notification to admin if status actually changed
       if (previousStatus !== status) {
         try {
-          const { sendOrderStatusNotification } = require('./notifications');
           await sendOrderStatusNotification(updatedOrder, previousStatus);
           console.log(`Order status notification sent: ${previousStatus} -> ${status}`);
         } catch (notifError) {
@@ -1311,9 +1309,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session || !req.session.adminId) {
         return res.status(401).json({ message: "Admin authentication required" });
       }
-      
-      // Import the notification service
-      const { sendAdminNotification } = require('./notifications');
       
       // Send a test notification to all subscriptions for this admin
       const title = "Test Notification";

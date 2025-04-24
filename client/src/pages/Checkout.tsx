@@ -69,11 +69,7 @@ const CheckoutPage = () => {
         customerEmail: data.email,
         total: data.total,
         status: "pending",
-        createdAt: new Date().toISOString(),
-        // Adding these extra fields to match the server schema
-        shippingAddress: `${data.address}, ${data.city}, ${data.state} ${data.zipCode}`,
-        phone: data.phone,
-        notes: data.notes || ""
+        createdAt: new Date().toISOString()
       };
       
       const response = await apiRequest('POST', '/api/orders', {
