@@ -1,9 +1,9 @@
 import webpush from 'web-push';
 
-// VAPID keys should be generated using web-push generate-vapid-keys
-// For development, we'll use hardcoded keys, but in production they should be environment variables
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BKn_GBJ8Zhl5H4T7dksYdcm0_b97IXfMjfK_KjXYRiAIONYGnNiwEJX3Szj5iD-6vH9kDFJpnr9uQ9sJ3xpcIyo';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'aNa-BX5oHhZZ1k_wU0f38hVTgVeCiaJw7y69DexFTuI';
+// VAPID keys generated using web-push generate-vapid-keys
+// These are newly generated valid VAPID keys
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BGWlRKIsq_rmdo4yclmW-LWsuUH2WMSWJWXAp78oNYKakN8nV2q21pPQWeO1jqaK6G0KIe5xFAqRLS6Y3vraSYI';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '6BnsUON5SQa7Ba8kTAgCgrHngrc1ThKmcB5p5znfwrM';
 
 // Email is required for VAPID
 const VAPID_EMAIL = process.env.VAPID_EMAIL || 'admin@sipofeden.com';

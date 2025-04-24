@@ -142,11 +142,11 @@ const AdminDashboard = () => {
             title: "Notification Sent!",
             description: "A test notification has been sent to your device. You should receive it shortly.",
           });
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error in notification setup process:', error);
           toast({
             title: "Notification Error",
-            description: `Failed to set up notifications: ${error.message}`,
+            description: `Failed to set up notifications: ${error.message || 'Unknown error'}`,
             variant: "destructive",
           });
           
@@ -188,12 +188,12 @@ const AdminDashboard = () => {
             
             setTimeout(showSimulatedNotification, 1000);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("Error in notification permission request:", err);
           showSimulatedNotification();
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       // If any error occurs with the Notification API, fall back to simulated
       console.error("Error using Notification API:", error);
       showSimulatedNotification();
