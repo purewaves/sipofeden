@@ -19,7 +19,8 @@ import {
   insertOrderItemSchema,
   updateAdminProfileSchema,
   updateAdminPasswordSchema,
-  updateWebsiteSettingsSchema
+  updateWebsiteSettingsSchema,
+  adminNotificationSubscriptions
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -516,21 +517,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (juice) {
           console.log(`[ADD TO CART] Found juice with id ${validatedData.juiceId}: ${juice.name}`);
           
-          // Send notification about the cart addition asynchronously
-          // We don't await this to avoid delaying the response
-          console.log('[ADD TO CART] Preparing to send cart notification');
+          // Check if there are active subscriptions before attempting to send
+          console.log('[ADD TO CART] Checking if any active notification subscriptions exist');
+          const subscriptions = await db.select().from(adminNotificationSubscriptions)
+            .where(eq(adminNotificationSubscriptions.active, true));
           
-          sendCartAddedNotification(cartItem, juice)
-            .then(result => {
-              if (result) {
-                console.log(`[ADD TO CART] Cart notification sent successfully to ${result ? result.length : 0} recipients`);
-              } else {
-                console.log('[ADD TO CART] Cart notification process completed but no results returned');
-              }
-            })
-            .catch(err => {
-              console.error('[ADD TO CART] Failed to send cart notification:', err);
-            });
+          if (subscriptions.length === 0) {
+            console.log('[ADD TO CART] No active notification subscriptions found, skipping notification');
+          } else {
+            // Send notification about the cart addition asynchronously
+            // We don't await this to avoid delaying the response
+            console.log('[ADD TO CART] Preparing to send cart notification to ' + subscriptions.length + ' subscriptions');
+            
+            sendCartAddedNotification(cartItem, juice)
+              .then(result => {
+                if (result) {
+                  console.log(`[ADD TO CART] Cart notification sent successfully to ${result ? result.length : 0} recipients`);
+                } else {
+                  console.log('[ADD TO CART] Cart notification process completed but no results returned');
+                }
+              })
+              .catch(err => {
+                console.error('[ADD TO CART] Failed to send cart notification:', err);
+              });
+          }
         } else {
           console.log(`[ADD TO CART] No juice found with id ${validatedData.juiceId} for notification`);
         }
@@ -1114,11 +1124,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send notification to admin about new order
       try {
-        await sendNewOrderNotification(newOrder);
-        console.log("New order notification sent to admin");
+        // Check if there are active subscriptions before attempting to send
+        console.log('[NEW ORDER] Checking if any active notification subscriptions exist');
+        const subscriptions = await db.select().from(adminNotificationSubscriptions)
+          .where(eq(adminNotificationSubscriptions.active, true));
+        
+        if (subscriptions.length === 0) {
+          console.log('[NEW ORDER] No active notification subscriptions found, skipping notification');
+        } else {
+          console.log(`[NEW ORDER] Sending notification to ${subscriptions.length} subscriptions`);
+          await sendNewOrderNotification(newOrder);
+          console.log("[NEW ORDER] Notification sent successfully");
+        }
       } catch (notifError) {
         // Don't fail if notification sending fails
-        console.error("Failed to send new order notification:", notifError);
+        console.error("[NEW ORDER] Failed to send notification:", notifError);
       }
       res.status(201).json(newOrder);
     } catch (error) {
@@ -1185,11 +1205,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send status change notification to admin if status actually changed
       if (previousStatus !== status) {
         try {
-          await sendOrderStatusNotification(updatedOrder, previousStatus);
-          console.log(`Order status notification sent: ${previousStatus} -> ${status}`);
+          // Check if there are active subscriptions before attempting to send
+          console.log('[ORDER STATUS] Checking if any active notification subscriptions exist');
+          const subscriptions = await db.select().from(adminNotificationSubscriptions)
+            .where(eq(adminNotificationSubscriptions.active, true));
+          
+          if (subscriptions.length === 0) {
+            console.log('[ORDER STATUS] No active notification subscriptions found, skipping notification');
+          } else {
+            console.log(`[ORDER STATUS] Sending notification to ${subscriptions.length} subscriptions`);
+            await sendOrderStatusNotification(updatedOrder, previousStatus);
+            console.log(`[ORDER STATUS] Notification sent: ${previousStatus} -> ${status}`);
+          }
         } catch (notifError) {
           // Don't fail if notification sending fails
-          console.error("Failed to send order status notification:", notifError);
+          console.error("[ORDER STATUS] Failed to send notification:", notifError);
         }
       }
       
