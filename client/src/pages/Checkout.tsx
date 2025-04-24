@@ -63,14 +63,22 @@ const CheckoutPage = () => {
 
   const createOrderMutation = useMutation({
     mutationFn: async (data: CheckoutFormValues & { items: any[], total: number }) => {
-      const response = await apiRequest('POST', '/api/orders', {
+      // Format the data according to what the server expects
+      const order = {
         customerName: `${data.firstName} ${data.lastName}`,
         customerEmail: data.email,
+        total: data.total,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        // Adding these extra fields to match the server schema
         shippingAddress: `${data.address}, ${data.city}, ${data.state} ${data.zipCode}`,
         phone: data.phone,
-        notes: data.notes,
-        items: data.items,
-        total: data.total
+        notes: data.notes || ""
+      };
+      
+      const response = await apiRequest('POST', '/api/orders', {
+        order,
+        items: data.items
       });
       return response.json();
     },
