@@ -1328,6 +1328,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Admin authentication required" });
       }
       
+      // Check if there are active subscriptions before attempting to send
+      const subscriptions = await db.select().from(adminNotificationSubscriptions)
+        .where(eq(adminNotificationSubscriptions.active, true));
+      
+      if (!subscriptions.length) {
+        console.log("No active push notification subscriptions found for admin");
+        return res.status(400).json({ 
+          message: "No active notification subscriptions found",
+          error: "You need to enable notifications in your browser and subscribe first. Go to the Dashboard and click 'Enable Notifications'"
+        });
+      }
+      
       // Send a test notification to all subscriptions for this admin
       const title = "Test Notification";
       const body = "This is a test notification from Sip of Eden";
@@ -1336,7 +1348,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = await sendAdminNotification(title, body, url);
       
       res.json({ 
-        message: "Test notification sent",
+        message: "Test notification sent successfully",
+        subscribedDevices: subscriptions.length,
         results
       });
     } catch (error) {
