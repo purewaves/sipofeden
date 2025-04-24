@@ -1,7 +1,7 @@
 import { webPush } from './webPush';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
-import { adminNotificationSubscriptions, Order } from '@shared/schema';
+import { adminNotificationSubscriptions, Order, CartItem, Juice } from '@shared/schema';
 
 /**
  * Send a notification to all subscribed admins
@@ -109,5 +109,25 @@ export async function sendOrderStatusNotification(order: Order, previousStatus: 
     orderStatus: order.status,
     previousStatus,
     orderType: 'status_update'
+  });
+}
+
+/**
+ * Send a notification when a customer adds an item to their cart
+ * @param cartItem The cart item that was added
+ * @param juice The juice that was added to the cart
+ */
+export async function sendCartAddedNotification(cartItem: CartItem, juice: Juice) {
+  const title = '🛒 New Item Added to Cart';
+  const body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
+  const url = '/admin/dashboard';
+  
+  return sendAdminNotification(title, body, url, undefined, {
+    cartItemId: cartItem.id,
+    juiceId: juice.id,
+    juiceName: juice.name,
+    quantity: cartItem.quantity,
+    sessionId: cartItem.sessionId,
+    notificationType: 'cart_item_added'
   });
 }

@@ -7,6 +7,7 @@ import fs from "fs";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { upload } from "./cloudinary";
+import { sendCartAddedNotification, sendNewOrderNotification, sendOrderStatusNotification } from "./notifications";
 import { 
   insertJuiceSchema, 
   insertCartItemSchema, 
