@@ -502,6 +502,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCartItemSchema.parse(req.body);
       const cartItem = await storage.addToCart(validatedData);
+      
+      // Get juice details for the notification
+      const juice = await storage.getJuiceById(validatedData.juiceId);
+      if (juice) {
+        // Send notification about the cart addition asynchronously
+        // We don't await this to avoid delaying the response
+        sendCartAddedNotification(cartItem, juice)
+          .then(result => {
+            if (result) {
+              console.log(`Cart notification sent successfully to ${result.length} recipients`);
+            }
+          })
+          .catch(err => {
+            console.error('Failed to send cart notification:', err);
+          });
+      }
+      
       res.status(201).json(cartItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
