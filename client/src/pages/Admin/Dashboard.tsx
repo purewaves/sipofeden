@@ -401,7 +401,7 @@ const AdminDashboard = () => {
                 variant="default"
               >
                 <Bell className="h-4 w-4" />
-                {Notification.permission === 'granted' ? 'Test Notification' : 'Enable Notifications'}
+                {('Notification' in window) ? (window.Notification.permission === 'granted' ? 'Test Notification' : 'Enable Notifications') : 'Test Notification'}
               </Button>
             </div>
           </CardContent>
