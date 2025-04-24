@@ -71,6 +71,26 @@ const PwaInstallPrompt = () => {
   const handleInstall = async () => {
     if (!installEvent) {
       console.log("No install event available.");
+      
+      // For debugging - attempt manual PWA installation if no event
+      try {
+        // Try to show an alternative install method for browsers where
+        // beforeinstallprompt event might be blocked
+        toast({
+          title: "Installation Hint",
+          description: "Look for the install icon in your browser's address bar or menu.",
+          duration: 5000,
+        });
+        
+        // In some browsers, we can directly trigger install from manifest
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+          window.location.href = manifestLink.getAttribute('href') || '';
+        }
+      } catch (err) {
+        console.error('Manual installation attempt failed:', err);
+      }
+      
       return;
     }
 
@@ -94,9 +114,18 @@ const PwaInstallPrompt = () => {
       console.error('Error installing app:', err);
       toast({
         title: "Installation Failed",
-        description: "There was a problem installing the app.",
+        description: "There was a problem installing the app. Trying alternative method...",
         variant: "destructive",
       });
+      
+      // Fallback to manual installation hints
+      setTimeout(() => {
+        toast({
+          title: "Installation Alternative",
+          description: "Try using your browser's 'Add to Home Screen' option from the menu.",
+          duration: 8000,
+        });
+      }, 2000);
     }
   };
 

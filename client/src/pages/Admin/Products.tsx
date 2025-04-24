@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import AdminHeader from "@/components/admin/AdminHeader";
 import ProductForm from "@/components/admin/ProductForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ import { Juice } from "@shared/schema";
 import { formatCurrency, getStockStatus, getStockStatusClass } from "@/lib/utils";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import AdminPageWrapper from "@/components/layout/AdminPageWrapper";
 
 const AdminProducts = () => {
   const [, navigate] = useLocation();
@@ -135,188 +135,183 @@ const AdminProducts = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <AdminHeader />
+    <AdminPageWrapper title="Products">
+      <div className="flex justify-between items-center mb-6">
+        <Button 
+          onClick={handleAddProduct}
+          className="bg-primary hover:bg-primary/90 text-white ml-auto"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Add New Product
+        </Button>
+      </div>
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="font-heading text-2xl font-semibold">Products</h1>
-          <Button 
-            onClick={handleAddProduct}
-            className="bg-primary hover:bg-primary/90 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add New Product
-          </Button>
+      <Card>
+        <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b">
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input 
+              type="text" 
+              placeholder="Search products..." 
+              className="pl-9 w-full sm:w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <select 
+              className="border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              {categories.map(category => (
+                <option key={category} value={category.toLowerCase()}>{category}</option>
+              ))}
+            </select>
+            <select 
+              className="border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="instock">In Stock</option>
+              <option value="lowstock">Low Stock</option>
+              <option value="outofstock">Out of Stock</option>
+            </select>
+          </div>
         </div>
         
-        <Card>
-          <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input 
-                type="text" 
-                placeholder="Search products..." 
-                className="pl-9 w-full sm:w-64"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <select 
-                className="border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category.toLowerCase()}>{category}</option>
-                ))}
-              </select>
-              <select 
-                className="border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="instock">In Stock</option>
-                <option value="lowstock">Low Stock</option>
-                <option value="outofstock">Out of Stock</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-4 py-3 text-left">
-                    <div className="flex items-center">
-                      <Checkbox 
-                        checked={selectAll} 
-                        onCheckedChange={handleSelectAll} 
-                        className="mr-2"
-                      />
-                      <span>Product</span>
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left">SKU</th>
-                  <th className="px-4 py-3 text-left">Category</th>
-                  <th className="px-4 py-3 text-left">Price</th>
-                  <th className="px-4 py-3 text-left">Stock</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  // Loading state
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center">
-                          <Checkbox disabled className="mr-2" />
-                          <Skeleton className="w-10 h-10 rounded mr-3" />
-                          <Skeleton className="h-4 w-24" />
-                        </div>
-                      </td>
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-8" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-6 w-20 rounded-full" /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-center space-x-2">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : filteredJuices && filteredJuices.length > 0 ? (
-                  // Products list
-                  filteredJuices.map(juice => (
-                    <tr key={juice.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center">
-                          <Checkbox 
-                            checked={selectedProductIds.includes(juice.id)} 
-                            onCheckedChange={() => handleSelectProduct(juice.id)}
-                            className="mr-2"
-                          />
-                          <img 
-                            src={juice.imageUrl} 
-                            alt={juice.name}
-                            className="w-10 h-10 object-cover rounded mr-3"
-                          />
-                          <span className="font-medium">{juice.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">{juice.sku}</td>
-                      <td className="px-4 py-3">{juice.category}</td>
-                      <td className="px-4 py-3">{formatCurrency(juice.price)}</td>
-                      <td className="px-4 py-3">{juice.stock}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${getStockStatusClass(juice.stock)}`}>
-                          {getStockStatus(juice.stock)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-center space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleEditProduct(juice)}
-                            className="text-blue-500 hover:text-blue-700 h-8 w-8 p-0"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteClick(juice)}
-                            className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  // No products found
-                  <tr>
-                    <td colSpan={7} className="px-4 py-3 text-center text-gray-500">
-                      No products found matching your criteria
+        <div className="overflow-x-auto">
+          <table className="w-full whitespace-nowrap">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-4 py-3 text-left">
+                  <div className="flex items-center">
+                    <Checkbox 
+                      checked={selectAll} 
+                      onCheckedChange={handleSelectAll} 
+                      className="mr-2"
+                    />
+                    <span>Product</span>
+                  </div>
+                </th>
+                <th className="px-4 py-3 text-left">SKU</th>
+                <th className="px-4 py-3 text-left">Category</th>
+                <th className="px-4 py-3 text-left">Price</th>
+                <th className="px-4 py-3 text-left">Stock</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                // Loading state
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <Checkbox disabled className="mr-2" />
+                        <Skeleton className="w-10 h-10 rounded mr-3" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-8" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center space-x-2">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                      </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          {filteredJuices && filteredJuices.length > 0 && (
-            <div className="p-4 border-t flex justify-between items-center">
-              <div>
-                <span className="text-gray-600">
-                  Showing {filteredJuices.length} of {juices?.length || 0} products
-                </span>
-              </div>
-              <div className="flex space-x-1">
-                <Button variant="outline" size="sm" className="px-3 py-1 h-8">
-                  <span className="sr-only">Previous</span>
-                  &laquo;
-                </Button>
-                <Button variant="outline" size="sm" className="px-3 py-1 h-8 bg-primary text-white">1</Button>
-                <Button variant="outline" size="sm" className="px-3 py-1 h-8">
-                  <span className="sr-only">Next</span>
-                  &raquo;
-                </Button>
-              </div>
+                ))
+              ) : filteredJuices && filteredJuices.length > 0 ? (
+                // Products list
+                filteredJuices.map(juice => (
+                  <tr key={juice.id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <Checkbox 
+                          checked={selectedProductIds.includes(juice.id)} 
+                          onCheckedChange={() => handleSelectProduct(juice.id)}
+                          className="mr-2"
+                        />
+                        <img 
+                          src={juice.imageUrl} 
+                          alt={juice.name}
+                          className="w-10 h-10 object-cover rounded mr-3"
+                        />
+                        <span className="font-medium">{juice.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{juice.sku}</td>
+                    <td className="px-4 py-3">{juice.category}</td>
+                    <td className="px-4 py-3">{formatCurrency(juice.price)}</td>
+                    <td className="px-4 py-3">{juice.stock}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStockStatusClass(juice.stock)}`}>
+                        {getStockStatus(juice.stock)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditProduct(juice)}
+                          className="text-blue-500 hover:text-blue-700 h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteClick(juice)}
+                          className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                // No products found
+                <tr>
+                  <td colSpan={7} className="px-4 py-3 text-center text-gray-500">
+                    No products found matching your criteria
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {filteredJuices && filteredJuices.length > 0 && (
+          <div className="p-4 border-t flex justify-between items-center">
+            <div>
+              <span className="text-gray-600">
+                Showing {filteredJuices.length} of {juices?.length || 0} products
+              </span>
             </div>
-          )}
-        </Card>
-      </main>
+            <div className="flex space-x-1">
+              <Button variant="outline" size="sm" className="px-3 py-1 h-8">
+                <span className="sr-only">Previous</span>
+                &laquo;
+              </Button>
+              <Button variant="outline" size="sm" className="px-3 py-1 h-8 bg-primary text-white">1</Button>
+              <Button variant="outline" size="sm" className="px-3 py-1 h-8">
+                <span className="sr-only">Next</span>
+                &raquo;
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
       
       {/* Product Form Dialog */}
       <Dialog open={openProductForm} onOpenChange={setOpenProductForm}>
@@ -349,7 +344,7 @@ const AdminProducts = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminPageWrapper>
   );
 };
 
