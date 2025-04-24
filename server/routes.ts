@@ -501,27 +501,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cart", async (req: Request, res: Response) => {
     try {
+      console.log('[ADD TO CART] Request received', req.body);
       const validatedData = insertCartItemSchema.parse(req.body);
+      console.log('[ADD TO CART] Data validated successfully');
+      
       const cartItem = await storage.addToCart(validatedData);
+      console.log('[ADD TO CART] Item added to cart successfully', cartItem);
       
       // Get juice details for the notification
-      const juice = await storage.getJuiceById(validatedData.juiceId);
-      if (juice) {
-        // Send notification about the cart addition asynchronously
-        // We don't await this to avoid delaying the response
-        sendCartAddedNotification(cartItem, juice)
-          .then(result => {
-            if (result) {
-              console.log(`Cart notification sent successfully to ${result.length} recipients`);
-            }
-          })
-          .catch(err => {
-            console.error('Failed to send cart notification:', err);
-          });
+      try {
+        console.log('[ADD TO CART] Retrieving juice details for notification');
+        const juice = await storage.getJuiceById(validatedData.juiceId);
+        
+        if (juice) {
+          console.log(`[ADD TO CART] Found juice with id ${validatedData.juiceId}: ${juice.name}`);
+          
+          // Send notification about the cart addition asynchronously
+          // We don't await this to avoid delaying the response
+          console.log('[ADD TO CART] Preparing to send cart notification');
+          
+          sendCartAddedNotification(cartItem, juice)
+            .then(result => {
+              if (result) {
+                console.log(`[ADD TO CART] Cart notification sent successfully to ${result ? result.length : 0} recipients`);
+              } else {
+                console.log('[ADD TO CART] Cart notification process completed but no results returned');
+              }
+            })
+            .catch(err => {
+              console.error('[ADD TO CART] Failed to send cart notification:', err);
+            });
+        } else {
+          console.log(`[ADD TO CART] No juice found with id ${validatedData.juiceId} for notification`);
+        }
+      } catch (notificationError) {
+        // Log the error but don't fail the cart operation
+        console.error('[ADD TO CART] Error during notification process:', notificationError);
       }
       
       res.status(201).json(cartItem);
     } catch (error) {
+      console.error('[ADD TO CART] Error adding item to cart:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid cart item data", errors: error.errors });
       }

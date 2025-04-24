@@ -118,28 +118,45 @@ export async function sendOrderStatusNotification(order: Order, previousStatus: 
  * @param juice The juice that was added to the cart
  */
 export async function sendCartAddedNotification(cartItem: CartItem, juice: Juice) {
-  let title = '🛒 New Item Added to Cart';
-  let body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
-  let icon = undefined;
-  
-  // Special notification for detox juices
-  if (juice.category.toLowerCase().includes('detox')) {
-    title = '🌿 Detox Juice Added to Cart!';
-    body = `A health-conscious customer just added ${cartItem.quantity}x ${juice.name} to their cart. Detox juices are trending today!`;
-    // We could use a special icon for detox juices if we had one
+  try {
+    console.log(`[CART NOTIFICATION] Starting to send cart notification for ${juice.name}`);
+    
+    let title = '🛒 New Item Added to Cart';
+    let body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
+    let icon = undefined;
+    
+    // Special notification for detox juices
+    if (juice.category && juice.category.toLowerCase().includes('detox')) {
+      console.log(`[CART NOTIFICATION] Using special detox notification for ${juice.name}`);
+      title = '🌿 Detox Juice Added to Cart!';
+      body = `A health-conscious customer just added ${cartItem.quantity}x ${juice.name} to their cart. Detox juices are trending today!`;
+      // We could use a special icon for detox juices if we had one
+    }
+    
+    const url = '/admin/dashboard';
+    
+    console.log(`[CART NOTIFICATION] Preparing to send notification with title: ${title}`);
+    
+    const notificationData = {
+      cartItemId: cartItem.id,
+      juiceId: juice.id,
+      juiceName: juice.name,
+      juiceCategory: juice.category || 'Unknown',
+      price: juice.price,
+      quantity: cartItem.quantity,
+      sessionId: cartItem.sessionId,
+      notificationType: 'cart_item_added',
+      isDetox: juice.category && juice.category.toLowerCase().includes('detox')
+    };
+    
+    console.log(`[CART NOTIFICATION] Notification data prepared:`, notificationData);
+    
+    const result = await sendAdminNotification(title, body, url, icon, notificationData);
+    console.log(`[CART NOTIFICATION] Notification process complete for ${juice.name}`);
+    return result;
+  } catch (error) {
+    console.error(`[CART NOTIFICATION ERROR] Failed to send cart notification for ${juice.name}:`, error);
+    // Don't throw so the cart operation can still succeed even if notification fails
+    return null;
   }
-  
-  const url = '/admin/dashboard';
-  
-  return sendAdminNotification(title, body, url, icon, {
-    cartItemId: cartItem.id,
-    juiceId: juice.id,
-    juiceName: juice.name,
-    juiceCategory: juice.category,
-    price: juice.price,
-    quantity: cartItem.quantity,
-    sessionId: cartItem.sessionId,
-    notificationType: 'cart_item_added',
-    isDetox: juice.category.toLowerCase().includes('detox')
-  });
 }
