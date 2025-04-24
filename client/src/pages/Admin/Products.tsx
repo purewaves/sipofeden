@@ -136,10 +136,10 @@ const AdminProducts = () => {
 
   return (
     <AdminPageWrapper title="Products">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-end mb-6">
         <Button 
           onClick={handleAddProduct}
-          className="bg-primary hover:bg-primary/90 text-white ml-auto"
+          className="bg-primary hover:bg-primary/90 text-white"
         >
           <Plus className="mr-2 h-4 w-4" /> Add New Product
         </Button>

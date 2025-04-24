@@ -38,21 +38,59 @@ const PwaInstallPrompt = () => {
 
   // Listen for install event (Chrome, Edge, etc.)
   useEffect(() => {
+    // Check if there's a stored event in sessionStorage
+    const checkForStoredEvent = () => {
+      const hasStoredEvent = sessionStorage.getItem('pwaInstallEvent');
+      if (hasStoredEvent === 'available') {
+        // If we have a stored flag but not the actual event, 
+        // we can show our UI but will need to direct users to alternative methods
+        console.log("PWA install event was previously available");
+        setShowPrompt(true);
+      }
+    };
+    
+    checkForStoredEvent();
+    
     const handleBeforeInstallPrompt = (e: any) => {
+      // Log event capture for debugging
+      console.log("beforeinstallprompt event captured", e);
+      
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
+      
       // Stash the event so it can be triggered later
       setInstallEvent(e);
+      
+      // Store a flag in sessionStorage so we know install is available
+      sessionStorage.setItem('pwaInstallEvent', 'available');
+      
       // Show our custom install prompt
       setShowPrompt(true);
     };
 
+    // Debugging: log if the event handler is attached
+    console.log("Adding beforeinstallprompt event listener");
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Also listen for appinstalled event to know when installation is successful
+    const handleAppInstalled = () => {
+      console.log("App was successfully installed");
+      setShowPrompt(false);
+      sessionStorage.removeItem('pwaInstallEvent');
+      
+      toast({
+        title: "Installation Complete",
+        description: "The admin dashboard has been successfully installed!",
+      });
+    };
+    
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [toast]);
 
   // Also detect Safari on iOS
   useEffect(() => {
@@ -129,8 +167,9 @@ const PwaInstallPrompt = () => {
     }
   };
 
-  // Don't show if already installed or no installation options available
-  if (isPwa || (!installEvent && !isIos)) {
+  // Only hide if it's already installed as a PWA
+  // We'll still show the prompt even without an install event to provide alternative installation methods
+  if (isPwa) {
     return null;
   }
 
@@ -171,10 +210,22 @@ const PwaInstallPrompt = () => {
                 <Button variant="outline" onClick={() => setShowPrompt(false)}>
                   Not now
                 </Button>
-                <Button onClick={handleInstall} className="gap-2">
+                <Button 
+                  onClick={handleInstall} 
+                  className="gap-2 bg-primary hover:bg-primary/90"
+                >
                   <Download className="h-4 w-4" />
                   Install App
                 </Button>
+              </div>
+              {/* Alternative installation instructions as a fallback */}
+              <div className="mt-4 pt-4 border-t text-sm text-gray-600">
+                <p className="font-medium mb-2">Alternative installation methods:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Look for an install icon (⊕) in your browser's address bar</li>
+                  <li>From your browser menu, select "Install App" or "Add to Home Screen"</li>
+                  <li>On desktop, click the three dots menu → More tools → Create shortcut</li>
+                </ol>
               </div>
             </div>
           )}
