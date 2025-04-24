@@ -14,6 +14,7 @@ import { sendTestNotification } from "@/lib/serviceWorker";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import AdminLayout from "@/components/layout/AdminLayout";
 
 const AdminDashboard = () => {
   const [, navigate] = useLocation();
@@ -154,11 +155,12 @@ const AdminDashboard = () => {
   const subscriptionCount = 187; // Mocked data since we don't have subscriptions in orders
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <AdminHeader />
-      
-      <main className="container mx-auto px-4 py-8">
-        <section className="mb-10">
+    <AdminLayout>
+      <div className="min-h-screen bg-gray-100">
+        <AdminHeader />
+        
+        <main className="container mx-auto px-4 py-8">
+          <section className="mb-10">
           <div className="flex justify-between items-center mb-6">
             <h1 className="font-heading text-2xl font-semibold">Dashboard</h1>
             <Button 
@@ -557,6 +559,7 @@ const AdminDashboard = () => {
         </section>
       </main>
     </div>
+    </AdminLayout>
   );
 };
 
