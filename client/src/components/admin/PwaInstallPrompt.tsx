@@ -185,21 +185,55 @@ const PwaInstallPrompt = () => {
         <div className="mt-4">
           {isIos ? (
             <div className="space-y-4">
-              <p className="text-sm">
-                To install this app on your iOS device, tap the share icon <span className="inline-block px-2 py-1 border rounded">⏏️</span> and then "Add to Home Screen".
-              </p>
-              <img 
-                src="/pwa-install-guide-ios.png" 
-                alt="iOS installation guide" 
-                className="max-w-xs mx-auto rounded-lg border"
-              />
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => setShowPrompt(false)}
-              >
-                I'll do it later
-              </Button>
+              <div className="border rounded-lg p-4 bg-amber-50 border-amber-200">
+                <h3 className="text-lg font-semibold text-amber-800 mb-2">iPhone Installation Guide</h3>
+                <p className="text-sm mb-3">
+                  Follow these steps to install the admin dashboard on your iOS device:
+                </p>
+                <ol className="list-decimal list-inside space-y-3 text-sm text-amber-800">
+                  <li className="flex items-start">
+                    <span className="mr-2">Tap the share icon</span>
+                    <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-300 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                        <polyline points="16 6 12 2 8 6"></polyline>
+                        <line x1="12" y1="2" x2="12" y2="15"></line>
+                      </svg>
+                    </div>
+                    <span className="ml-2">in Safari's bottom menu bar</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">Scroll down and tap</span>
+                    <div className="inline-flex items-center px-2 py-1 bg-white border border-gray-300 rounded-md shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                      </svg>
+                      <span className="ml-1 text-xs">Add to Home Screen</span>
+                    </div>
+                  </li>
+                  <li>
+                    On the next screen, tap <span className="font-semibold">Add</span> in the top-right corner
+                  </li>
+                </ol>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => window.location.href='/'}
+                  className="w-1/2 bg-transparent border-amber-500 hover:bg-amber-50 text-amber-600"
+                >
+                  Get Help
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-1/2" 
+                  onClick={() => setShowPrompt(false)}
+                >
+                  I'll do it later
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
