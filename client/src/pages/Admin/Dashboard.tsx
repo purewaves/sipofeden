@@ -32,7 +32,7 @@ const AdminDashboard = () => {
   }, []);
 
   // Handle notification test with comprehensive error handling
-  const handleTestNotification = () => {
+  const handleTestNotification = async () => {
     // Simulate a notification for browsers without notification support
     const showSimulatedNotification = () => {
       toast({
@@ -71,18 +71,88 @@ const AdminDashboard = () => {
       const currentPermission = window.Notification.permission;
       
       if (currentPermission === 'granted') {
-        // We already have permission, send a notification
-        sendTestNotification()
-          .then(() => {
-            toast({
-              title: "Notification Sent",
-              description: "A test notification has been sent to your device!",
+        toast({
+          title: "Preparing Notification",
+          description: "Setting up your notification subscription...",
+        });
+        
+        try {
+          // Make sure service worker is registered and ready
+          const registration = await navigator.serviceWorker.ready;
+          console.log("Service worker is ready:", registration);
+          
+          // Check for existing subscription first
+          let subscription = await registration.pushManager.getSubscription();
+          console.log("Existing subscription:", subscription);
+          
+          if (!subscription) {
+            // Get the VAPID public key from the server
+            const vapidResponse = await fetch('/api/admin/notifications/vapid-public-key');
+            if (!vapidResponse.ok) {
+              throw new Error(`Failed to get VAPID key: ${vapidResponse.statusText}`);
+            }
+            
+            const { vapidPublicKey } = await vapidResponse.json();
+            console.log("Got VAPID public key:", vapidPublicKey);
+            
+            // Convert base64 string to array buffer
+            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+            
+            // Create new subscription
+            console.log("Creating new push subscription...");
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey
             });
-          })
-          .catch(error => {
-            console.error('Error sending notification:', error);
-            showSimulatedNotification();
+            
+            console.log("Created new subscription:", subscription);
+            
+            // Save the subscription to server
+            const subscribeResponse = await fetch('/api/admin/notifications/subscribe', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                subscription,
+                deviceName: `${navigator.userAgent.split(' ')[0]} (${window.innerWidth}x${window.innerHeight})`
+              }),
+            });
+            
+            if (!subscribeResponse.ok) {
+              const errorData = await subscribeResponse.json();
+              throw new Error(`Failed to save subscription: ${errorData.message || subscribeResponse.statusText}`);
+            }
+            
+            console.log("Subscription registered with server");
+          }
+          
+          // Send test notification
+          const testResponse = await fetch('/api/admin/notifications/test', {
+            method: 'POST'
           });
+          
+          if (!testResponse.ok) {
+            const errorData = await testResponse.json();
+            console.warn('Server notification test failed:', errorData);
+            throw new Error(`Server test failed: ${errorData.message || testResponse.statusText}`);
+          }
+          
+          toast({
+            title: "Notification Sent!",
+            description: "A test notification has been sent to your device. You should receive it shortly.",
+          });
+        } catch (error) {
+          console.error('Error in notification setup process:', error);
+          toast({
+            title: "Notification Error",
+            description: `Failed to set up notifications: ${error.message}`,
+            variant: "destructive",
+          });
+          
+          // Fall back to simulated notification
+          setTimeout(showSimulatedNotification, 1000);
+        }
       } else if (currentPermission === 'denied') {
         // User previously denied permission
         toast({
@@ -97,36 +167,27 @@ const AdminDashboard = () => {
       } else {
         // Permission not determined yet, request it
         try {
-          window.Notification.requestPermission()
-            .then(permission => {
-              if (permission === 'granted') {
-                // User just granted permission
-                sendTestNotification()
-                  .then(() => {
-                    toast({
-                      title: "Notification Permission Granted!",
-                      description: "You will now receive notifications for new orders.",
-                    });
-                  })
-                  .catch(err => {
-                    console.error("Error sending test notification after permission granted:", err);
-                    showSimulatedNotification();
-                  });
-              } else {
-                // User denied the permission request
-                toast({
-                  title: "Notification Permission Denied",
-                  description: "You'll still receive simulated notifications within the app.",
-                  variant: "default",
-                });
-                
-                setTimeout(showSimulatedNotification, 1000);
-              }
-            })
-            .catch(err => {
-              console.error("Error requesting notification permission:", err);
-              showSimulatedNotification();
+          const permission = await Notification.requestPermission();
+          
+          if (permission === 'granted') {
+            // Call this function again now that we have permission
+            toast({
+              title: "Permission Granted!",
+              description: "Setting up notifications now...",
             });
+            
+            // Wait a short moment before trying again
+            setTimeout(() => handleTestNotification(), 1000);
+          } else {
+            // User denied the permission request
+            toast({
+              title: "Notification Permission Denied",
+              description: "You'll still receive simulated notifications within the app.",
+              variant: "default",
+            });
+            
+            setTimeout(showSimulatedNotification, 1000);
+          }
         } catch (err) {
           console.error("Error in notification permission request:", err);
           showSimulatedNotification();
@@ -138,6 +199,24 @@ const AdminDashboard = () => {
       showSimulatedNotification();
     }
   };
+  
+  // Helper function to convert base64 to Uint8Array
+  // This is needed for VAPID key conversion for push subscriptions
+  function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    
+    return outputArray;
+  }
 
   useEffect(() => {
     if (!isAuthenticated) {
