@@ -42,6 +42,9 @@ export async function runMigrations() {
     // Create website settings table if it doesn't exist
     await createWebsiteSettingsTable();
     
+    // Create admin notification subscriptions table if it doesn't exist
+    await createNotificationSubscriptionsTable();
+    
   } catch (error) {
     console.error("Error during migration:", error);
     throw error;
@@ -227,6 +230,46 @@ async function createLoyaltyTables() {
     }
   } catch (error) {
     console.error("Error creating loyalty tables:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create notification subscriptions table if it doesn't exist
+ */
+async function createNotificationSubscriptionsTable() {
+  try {
+    // Check if admin_notification_subscriptions table exists
+    const tableCheckResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'admin_notification_subscriptions'
+      );
+    `);
+    
+    if (!tableCheckResult.rows[0].exists) {
+      console.log("Creating admin notification subscriptions table...");
+      
+      // Create the table with all required columns
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS admin_notification_subscriptions (
+          id SERIAL PRIMARY KEY,
+          admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+          subscription TEXT NOT NULL,
+          user_agent TEXT,
+          device_name TEXT,
+          active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          last_used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      console.log("Admin notification subscriptions table created successfully");
+    } else {
+      console.log("Admin notification subscriptions table already exists");
+    }
+  } catch (error) {
+    console.error("Error creating admin notification subscriptions table:", error);
     throw error;
   }
 }
