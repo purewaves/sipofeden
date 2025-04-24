@@ -99,9 +99,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
+      {/* Sidebar for Desktop */}
+      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         <div className="flex flex-col flex-grow pt-5 bg-white border-r overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4 mb-5">
             <Link href="/admin/dashboard">
@@ -147,8 +147,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
       </div>
       
-      {/* Mobile Header */}
-      <div className="md:hidden bg-white shadow-sm py-2 px-4 flex items-center justify-between">
+      {/* Mobile Header - Full Width */}
+      <div className="md:hidden sticky top-0 z-50 w-full bg-white shadow-sm py-2 px-4 flex items-center justify-between">
         <Link href="/admin/dashboard">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-primary" />
@@ -178,9 +178,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
       </div>
       
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+      {/* Main Content - With Left Padding on Desktop */}
+      <div className="flex-1 flex flex-col md:ml-64">
+        <main className="flex-1 relative overflow-y-auto focus:outline-none w-full">
           {children}
         </main>
       </div>

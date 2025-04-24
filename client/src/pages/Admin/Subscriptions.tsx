@@ -307,11 +307,11 @@ const AdminSubscriptions = () => {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Subscription & Bundle Management</h1>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Subscription & Bundle Management</h1>
         </div>
-      
+        
         <div className="flex flex-col space-y-4">
           {/* Tabs */}
           <div className="flex space-x-2 border-b pb-2">
