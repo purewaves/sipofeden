@@ -118,16 +118,28 @@ export async function sendOrderStatusNotification(order: Order, previousStatus: 
  * @param juice The juice that was added to the cart
  */
 export async function sendCartAddedNotification(cartItem: CartItem, juice: Juice) {
-  const title = '🛒 New Item Added to Cart';
-  const body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
+  let title = '🛒 New Item Added to Cart';
+  let body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
+  let icon = undefined;
+  
+  // Special notification for detox juices
+  if (juice.category.toLowerCase().includes('detox')) {
+    title = '🌿 Detox Juice Added to Cart!';
+    body = `A health-conscious customer just added ${cartItem.quantity}x ${juice.name} to their cart. Detox juices are trending today!`;
+    // We could use a special icon for detox juices if we had one
+  }
+  
   const url = '/admin/dashboard';
   
-  return sendAdminNotification(title, body, url, undefined, {
+  return sendAdminNotification(title, body, url, icon, {
     cartItemId: cartItem.id,
     juiceId: juice.id,
     juiceName: juice.name,
+    juiceCategory: juice.category,
+    price: juice.price,
     quantity: cartItem.quantity,
     sessionId: cartItem.sessionId,
-    notificationType: 'cart_item_added'
+    notificationType: 'cart_item_added',
+    isDetox: juice.category.toLowerCase().includes('detox')
   });
 }
