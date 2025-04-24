@@ -144,11 +144,23 @@ const AdminDashboard = () => {
           });
         } catch (error: any) {
           console.error('Error in notification setup process:', error);
-          toast({
-            title: "Notification Error",
-            description: `Failed to set up notifications: ${error.message || 'Unknown error'}`,
-            variant: "destructive",
-          });
+          
+          // Check for specific errors related to missing subscriptions
+          const errorMessage = error.message || 'Unknown error';
+          if (errorMessage.includes('No active notification subscriptions found')) {
+            toast({
+              title: "Notifications Reset",
+              description: "Your notification subscriptions were cleared when data was reset. Please resubscribe by clicking the button again.",
+              variant: "destructive",
+              duration: 8000,
+            });
+          } else {
+            toast({
+              title: "Notification Error",
+              description: `Failed to set up notifications: ${errorMessage}`,
+              variant: "destructive",
+            });
+          }
           
           // Fall back to simulated notification
           setTimeout(showSimulatedNotification, 1000);

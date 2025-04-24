@@ -1366,7 +1366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("No active push notification subscriptions found for admin");
         return res.status(400).json({ 
           message: "No active notification subscriptions found",
-          error: "You need to enable notifications in your browser and subscribe first. Go to the Dashboard and click 'Enable Notifications'"
+          error: "Your notification subscriptions were removed when cleaning up test data. Please resubscribe by clicking 'Test PWA Notification' button again."
         });
       }
       
