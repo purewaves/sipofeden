@@ -232,6 +232,11 @@ const AdminDashboard = () => {
     queryKey: ['/api/admin/orders'],
   });
   
+  // Fetch subscription plans
+  const { data: subscriptionPlans = [], isLoading: isLoadingSubscriptions } = useQuery<any[]>({
+    queryKey: ['/api/admin/subscription-plans'],
+  });
+  
   // Query client for cache invalidation
   const queryClient = useQueryClient();
 
@@ -243,7 +248,7 @@ const AdminDashboard = () => {
   const totalSales = orders ? orders.reduce((total, order) => total + order.total, 0) : 0;
   const totalOrders = orders ? orders.length : 0;
   const totalCustomers = orders ? new Set(orders.map(order => order.customerEmail)).size : 0;
-  const subscriptionCount = 187; // Mocked data since we don't have subscriptions in orders
+  const subscriptionCount = subscriptionPlans ? subscriptionPlans.length : 0; // Actual count from database
 
   return (
     <AdminPageWrapper title="Dashboard">
@@ -333,7 +338,11 @@ const AdminDashboard = () => {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-500">Subscriptions</p>
-                <h2 className="text-2xl font-semibold">{subscriptionCount}</h2>
+                {isLoadingSubscriptions ? (
+                  <Skeleton className="h-8 w-16 mt-1" />
+                ) : (
+                  <h2 className="text-2xl font-semibold">{subscriptionCount}</h2>
+                )}
               </div>
               <div className="text-primary text-xl">
                 <RefreshCcw />
