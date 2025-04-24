@@ -111,7 +111,8 @@ const CheckoutPage = () => {
       items: cartItems.map(item => ({
         juiceId: item.juiceId,
         quantity: item.quantity,
-        price: item.juice.price
+        price: item.juice.price,
+        orderId: 0 // This will be replaced by the server with the actual order ID
       })),
       total
     });

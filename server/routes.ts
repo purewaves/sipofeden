@@ -7,7 +7,8 @@ import fs from "fs";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { upload } from "./cloudinary";
-import { sendCartAddedNotification, sendNewOrderNotification, sendOrderStatusNotification } from "./notifications";
+import { sendCartAddedNotification, sendNewOrderNotification, sendOrderStatusNotification, sendAdminNotification } from "./notifications";
+import { getPublicVapidKey } from "./webPush";
 import { 
   insertJuiceSchema, 
   insertCartItemSchema, 
@@ -1214,9 +1215,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Notification APIs
   app.get("/api/admin/notifications/vapid-public-key", isAdminAuthenticated, (req: Request, res: Response) => {
     try {
-      // Import the webPush module - make sure it's installed
-      const { getPublicVapidKey } = require('./webPush');
-      
       // Get the VAPID public key
       const vapidPublicKey = getPublicVapidKey();
       
