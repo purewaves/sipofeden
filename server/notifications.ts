@@ -15,7 +15,7 @@ export async function sendAdminNotification(
   title: string,
   body: string,
   url: string = '/admin/orders',
-  icon: string = '/icons/icon-192x192.png',
+  icon: string = '/assets/icons/icon-192x192.png',
   data: Record<string, any> = {}
 ) {
   try {
@@ -35,7 +35,7 @@ export async function sendAdminNotification(
       title,
       body,
       icon,
-      badge: '/icons/icon-72x72.png',
+      badge: '/assets/icons/badge-72x72.png',
       url,
       timestamp: new Date().getTime(),
       ...data
