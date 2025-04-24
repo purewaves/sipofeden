@@ -14,7 +14,7 @@ import NotFound from "@/pages/not-found";
 
 // Admin Pages
 import AdminLogin from "@/pages/Admin/Login";
-import UltraBasicDashboard from "@/pages/Admin/UltraBasicDashboard";
+import AdminDashboard from "@/pages/Admin/Dashboard";
 import AdminProducts from "@/pages/Admin/Products";
 import AdminOrders from "@/pages/Admin/Orders";
 import AdminSubscriptions from "@/pages/Admin/Subscriptions";
@@ -49,7 +49,7 @@ function Router() {
           
           {/* Admin Routes */}
           <Route path="/admin" component={AdminLogin} />
-          <Route path="/admin/dashboard" component={UltraBasicDashboard} />
+          <Route path="/admin/dashboard" component={AdminDashboard} />
           <Route path="/admin/products" component={AdminProducts} />
           <Route path="/admin/orders" component={AdminOrders} />
           <Route path="/admin/subscriptions" component={AdminSubscriptions} />
