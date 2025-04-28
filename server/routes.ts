@@ -128,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check file size (10MB max) - this is a backup to the multer limit
-      // iPhone photos can be 2-3MB or larger
+      // iPhone photos can be much larger (5-10MB from modern devices)
       const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
@@ -156,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
         if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // Truncate to 3MB for database safety - this should support most images
+          // Truncate to 10MB for database safety - this should support most modern images
           const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
@@ -208,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check file size (10MB max) - this is a backup to the multer limit
-      // iPhone photos can be 2-3MB or larger
+      // iPhone photos can be much larger (5-10MB from modern devices)
       const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
         if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // Truncate to 3MB for database safety - this should support most images
+          // Truncate to 10MB for database safety - this should support most modern images
           const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`[ADMIN] Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
