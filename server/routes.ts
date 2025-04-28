@@ -143,20 +143,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - limit to 1MB for production database safety
+      // Check final base64 size - increased to 3MB to support iPhone images
       const imageDataSize = imageUrl.length;
       console.log(`Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      if (imageDataSize > 1000000) {
+      // Accepting larger images now (3MB) to support iPhone photos
+      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      if (imageDataSize > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > 1000000) {
-          // Just truncate to a safer size - this is a simple approach
-          // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 1000000);
+        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
+          // Truncate to 3MB for database safety - this should support most images
+          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
         }
@@ -222,20 +223,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - limit to 1MB for production database safety
+      // Check final base64 size - increased to 3MB to support iPhone images
       const imageDataSize = imageUrl.length;
       console.log(`[ADMIN] Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      if (imageDataSize > 1000000) {
+      // Accepting larger images now (3MB) to support iPhone photos
+      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      if (imageDataSize > MAX_BASE64_SIZE) {
         console.warn(`[ADMIN] Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > 1000000) {
-          // We'll truncate to 1MB for database safety
-          // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 1000000);
+        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
+          // Truncate to 3MB for database safety - this should support most images
+          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           imageUrl = `${metaData},${truncatedData}`;
           console.log(`[ADMIN] Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
         }
@@ -529,7 +531,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // We don't await this to avoid delaying the response
             console.log('[ADD TO CART] Preparing to send cart notification to ' + subscriptions.length + ' subscriptions');
             
-            sendCartAddedNotification(cartItem, juice)
+            // Enhanced notification with customer info if available
+            const enhancedCartItem = { 
+              ...cartItem,
+              customerInfo: req.body.customerInfo || 'Anonymous shopper'  
+            };
+            
+            // Log what we're about to send
+            console.log(`[ADD TO CART] Sending notification for: ${juice.name}, Quantity: ${cartItem.quantity}, SessionID: ${cartItem.sessionId}`);
+            
+            sendCartAddedNotification(enhancedCartItem, juice)
               .then(result => {
                 if (result) {
                   console.log(`[ADD TO CART] Cart notification sent successfully to ${result ? result.length : 0} recipients`);

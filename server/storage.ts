@@ -157,17 +157,17 @@ export class DatabaseStorage implements IStorage {
       console.log(`Creating new juice '${juice.name}' with ${imageInfo}`);
       
       // Check if image URL is too long for database (PostgreSQL has limits)
-      // iPhone images can be 2-3MB, so we're setting a higher limit of 1MB (1,000,000 chars)
-      if (juice.imageUrl && juice.imageUrl.startsWith('data:') && juice.imageUrl.length > 1000000) {
+      // iPhone images can be 2-3MB, so we're now allowing up to 3MB (3,000,000 chars)
+      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      if (juice.imageUrl && juice.imageUrl.startsWith('data:') && juice.imageUrl.length > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(juice.imageUrl.length/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = juice.imageUrl.split(',');
-        if (base64Data && base64Data.length > 1000000) {
-          // We'll truncate to 1MB for database safety
-          // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 1000000);
+        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
+          // We'll truncate to 3MB for database safety - this should support most images
+          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           juice.imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(juice.imageUrl.length/1024)}KB`);
         }
@@ -212,17 +212,17 @@ export class DatabaseStorage implements IStorage {
       console.log('Updating juice data:', logUpdate);
       
       // Check if image URL is too long for database (PostgreSQL has limits)
-      // iPhone images can be 2-3MB, so we're setting a higher limit of 1MB (1,000,000 chars)
-      if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.startsWith('data:') && juiceUpdate.imageUrl.length > 1000000) {
+      // iPhone images can be 2-3MB, so we're now allowing up to 3MB (3,000,000 chars)
+      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.startsWith('data:') && juiceUpdate.imageUrl.length > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(juiceUpdate.imageUrl.length/1024)}KB), reducing quality...`);
         
         // Implement simple compression by limiting the image data length
         // Get the type and encoding
         const [metaData, base64Data] = juiceUpdate.imageUrl.split(',');
-        if (base64Data && base64Data.length > 1000000) {
-          // We'll truncate to 1MB for database safety
-          // A better solution would be to properly resize the image
-          const truncatedData = base64Data.slice(0, 1000000);
+        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
+          // Truncate to 3MB for database safety - this should support most images
+          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           juiceUpdate.imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(juiceUpdate.imageUrl.length/1024)}KB`);
         }

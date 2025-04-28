@@ -114,23 +114,39 @@ export async function sendOrderStatusNotification(order: Order, previousStatus: 
 
 /**
  * Send a notification when a customer adds an item to their cart
- * @param cartItem The cart item that was added
+ * @param cartItem The cart item that was added (with possible customerInfo)
  * @param juice The juice that was added to the cart
  */
-export async function sendCartAddedNotification(cartItem: CartItem, juice: Juice) {
+export async function sendCartAddedNotification(cartItem: any, juice: Juice) {
   try {
     console.log(`[CART NOTIFICATION] Starting to send cart notification for ${juice.name}`);
     
-    let title = '🛒 New Item Added to Cart';
-    let body = `A customer just added ${cartItem.quantity}x ${juice.name} to their cart!`;
+    // Get customer info if available
+    const customerInfo = cartItem.customerInfo || 'Anonymous shopper';
+    
+    // Format price with ₦ symbol
+    const formattedPrice = `₦${juice.price.toLocaleString()}`;
+    
+    // Build notification title and body
+    let title = '🛒 New Interest Alert!';
+    let body = `${customerInfo} just added ${cartItem.quantity}x ${juice.name} (${formattedPrice}) to their cart!`;
     let icon = undefined;
     
-    // Special notification for detox juices
-    if (juice.category && juice.category.toLowerCase().includes('detox')) {
-      console.log(`[CART NOTIFICATION] Using special detox notification for ${juice.name}`);
-      title = '🌿 Detox Juice Added to Cart!';
-      body = `A health-conscious customer just added ${cartItem.quantity}x ${juice.name} to their cart. Detox juices are trending today!`;
-      // We could use a special icon for detox juices if we had one
+    // Special notification for different juice categories
+    if (juice.category) {
+      const category = juice.category.toLowerCase();
+      
+      if (category.includes('detox')) {
+        console.log(`[CART NOTIFICATION] Using special detox notification for ${juice.name}`);
+        title = '🌿 Detox Juice Added to Cart!';
+        body = `A health-conscious customer is interested in ${cartItem.quantity}x ${juice.name} (${formattedPrice}). Detox juices are trending!`;
+      } else if (category.includes('immun')) {
+        title = '🍋 Immune Booster Added to Cart!';
+        body = `Someone is boosting their immunity with ${cartItem.quantity}x ${juice.name} (${formattedPrice})!`;
+      } else if (category.includes('energy')) {
+        title = '⚡ Energy Juice Added to Cart!';
+        body = `Someone needs an energy boost! ${cartItem.quantity}x ${juice.name} (${formattedPrice}) added to cart.`;
+      }
     }
     
     const url = '/admin/dashboard';
@@ -143,10 +159,12 @@ export async function sendCartAddedNotification(cartItem: CartItem, juice: Juice
       juiceName: juice.name,
       juiceCategory: juice.category || 'Unknown',
       price: juice.price,
+      formattedPrice: formattedPrice,
       quantity: cartItem.quantity,
       sessionId: cartItem.sessionId,
+      customerInfo: customerInfo,
       notificationType: 'cart_item_added',
-      isDetox: juice.category && juice.category.toLowerCase().includes('detox')
+      timestamp: new Date().toISOString()
     };
     
     console.log(`[CART NOTIFICATION] Notification data prepared:`, notificationData);
