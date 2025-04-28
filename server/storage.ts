@@ -157,8 +157,8 @@ export class DatabaseStorage implements IStorage {
       console.log(`Creating new juice '${juice.name}' with ${imageInfo}`);
       
       // Check if image URL is too long for database (PostgreSQL has limits)
-      // iPhone images can be 2-3MB, so we're now allowing up to 3MB (3,000,000 chars)
-      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      // iPhone images can be much larger, so we're now allowing up to 10MB (10,000,000 chars)
+      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
       if (juice.imageUrl && juice.imageUrl.startsWith('data:') && juice.imageUrl.length > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(juice.imageUrl.length/1024)}KB), reducing quality...`);
         
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
         // Get the type and encoding
         const [metaData, base64Data] = juice.imageUrl.split(',');
         if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // We'll truncate to 3MB for database safety - this should support most images
+          // We'll truncate to 10MB for database safety - this should support most modern images
           const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           juice.imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(juice.imageUrl.length/1024)}KB`);
@@ -212,8 +212,8 @@ export class DatabaseStorage implements IStorage {
       console.log('Updating juice data:', logUpdate);
       
       // Check if image URL is too long for database (PostgreSQL has limits)
-      // iPhone images can be 2-3MB, so we're now allowing up to 3MB (3,000,000 chars)
-      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      // iPhone images can be much larger, so we're now allowing up to 10MB (10,000,000 chars)
+      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
       if (juiceUpdate.imageUrl && juiceUpdate.imageUrl.startsWith('data:') && juiceUpdate.imageUrl.length > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(juiceUpdate.imageUrl.length/1024)}KB), reducing quality...`);
         

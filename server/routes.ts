@@ -143,12 +143,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - increased to 3MB to support iPhone images
+      // Check final base64 size - increased to 10MB to support larger iPhone images
       const imageDataSize = imageUrl.length;
       console.log(`Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      // Accepting larger images now (3MB) to support iPhone photos
-      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      // Accepting much larger images now (10MB) to support modern iPhone photos
+      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
       if (imageDataSize > MAX_BASE64_SIZE) {
         console.warn(`Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
@@ -223,12 +223,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = req.file.mimetype;
       let imageUrl = `data:${mimeType};base64,${base64Image}`;
       
-      // Check final base64 size - increased to 3MB to support iPhone images
+      // Check final base64 size - increased to 10MB to support larger iPhone images
       const imageDataSize = imageUrl.length;
       console.log(`[ADMIN] Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
       
-      // Accepting larger images now (3MB) to support iPhone photos
-      const MAX_BASE64_SIZE = 3 * 1024 * 1024; // 3MB
+      // Accepting much larger images now (10MB) to support modern iPhone photos
+      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
       if (imageDataSize > MAX_BASE64_SIZE) {
         console.warn(`[ADMIN] Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
         
