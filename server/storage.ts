@@ -221,7 +221,7 @@ export class DatabaseStorage implements IStorage {
         // Get the type and encoding
         const [metaData, base64Data] = juiceUpdate.imageUrl.split(',');
         if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // Truncate to 3MB for database safety - this should support most images
+          // Truncate to 10MB for database safety - this should support most modern images
           const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
           juiceUpdate.imageUrl = `${metaData},${truncatedData}`;
           console.log(`Reduced image size to approximately ${Math.round(juiceUpdate.imageUrl.length/1024)}KB`);
