@@ -17,9 +17,10 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
 import session from "express-session";
-import { pool } from "./db";
+import memorystore from 'memorystore';
+
+const MemoryStore = memorystore(session);
 
 export interface IStorage {
   // Juice operations
@@ -94,19 +95,13 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-const PostgresSessionStore = connectPg(session);
-
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    // Set up PostgreSQL session store with more robust configuration
-    this.sessionStore = new PostgresSessionStore({ 
-      pool,
-      createTableIfMissing: true,
-      tableName: 'session', // standard table name
-      schemaName: 'public', // ensure we're in the public schema
-      ttl: 86400 // 24 hours - longer session timeout
+    // Use MemoryStore instead of PostgreSQL session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
     });
     
     // Check if admin exists, if not create default admin
@@ -180,9 +175,21 @@ export class DatabaseStorage implements IStorage {
         stock: juice.stock ?? 0
       };
       
-      const result = await db.insert(juices).values(juiceWithDefaults).returning();
-      console.log(`Juice created successfully with ID: ${result[0].id}`);
-      return result[0];
+      await db.insert(juices)
+        .values(juiceWithDefaults)
+        .execute();
+      
+      // Get the inserted juice
+      const [insertedJuice] = await db.select()
+        .from(juices)
+        .where(eq(juices.sku, juiceWithDefaults.sku))
+        .limit(1);
+      
+      if (!insertedJuice) {
+        throw new Error('Failed to create juice');
+      }
+      
+      return insertedJuice;
     } catch (error) {
       console.error('Error creating juice:', error);
       throw error;
@@ -247,21 +254,26 @@ export class DatabaseStorage implements IStorage {
         sku: juiceUpdate.sku ?? current.sku
       };
       
-      const result = await db.update(juices)
+      await db.update(juices)
         .set(cleanedUpdate)
         .where(eq(juices.id, id))
-        .returning();
+        .execute();
       
-      console.log('Juice update successful');
-      return result[0];
+      // Get the updated juice
+      const [updatedJuice] = await db.select()
+        .from(juices)
+        .where(eq(juices.id, id))
+        .limit(1);
+      
+      return updatedJuice;
     } catch (error) {
-      console.error('Error updating juice in database:', error);
+      console.error('Error updating juice:', error);
       throw error;
     }
   }
   
   async deleteJuice(id: number): Promise<boolean> {
-    const result = await db.delete(juices).where(eq(juices.id, id)).returning();
+    const result = await db.delete(juices).where(eq(juices.id, id)).execute();
     return result.length > 0;
   }
   
@@ -314,7 +326,7 @@ export class DatabaseStorage implements IStorage {
         ...item,
         quantity: item.quantity || 1
       })
-      .returning();
+      .execute();
     
     return newItem[0];
   }
@@ -323,7 +335,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(cartItems)
       .set({ quantity })
       .where(eq(cartItems.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -331,7 +343,7 @@ export class DatabaseStorage implements IStorage {
   async removeFromCart(id: number): Promise<boolean> {
     const result = await db.delete(cartItems)
       .where(eq(cartItems.id, id))
-      .returning();
+      .execute();
     
     return result.length > 0;
   }
@@ -339,7 +351,7 @@ export class DatabaseStorage implements IStorage {
   async clearCart(sessionId: string): Promise<boolean> {
     const result = await db.delete(cartItems)
       .where(eq(cartItems.sessionId, sessionId))
-      .returning();
+      .execute();
     
     return result.length > 0;
   }
@@ -355,7 +367,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
-    const result = await db.insert(subscriptionPlans).values(plan).returning();
+    const result = await db.insert(subscriptionPlans).values(plan).execute();
     return result[0];
   }
   
@@ -363,13 +375,13 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(subscriptionPlans)
       .set(planUpdate)
       .where(eq(subscriptionPlans.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
   
   async deleteSubscriptionPlan(id: number): Promise<boolean> {
-    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id)).returning();
+    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id)).execute();
     return result.length > 0;
   }
   
@@ -384,7 +396,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createBundle(bundle: InsertBundle): Promise<Bundle> {
-    const result = await db.insert(bundles).values(bundle).returning();
+    const result = await db.insert(bundles).values(bundle).execute();
     return result[0];
   }
   
@@ -392,13 +404,13 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(bundles)
       .set(bundleUpdate)
       .where(eq(bundles.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
   
   async deleteBundle(id: number): Promise<boolean> {
-    const result = await db.delete(bundles).where(eq(bundles.id, id)).returning();
+    const result = await db.delete(bundles).where(eq(bundles.id, id)).execute();
     return result.length > 0;
   }
   
@@ -406,7 +418,7 @@ export class DatabaseStorage implements IStorage {
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
     const result = await db.insert(subscriptions)
       .values(subscription)
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -424,7 +436,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(subscriptions)
       .set({ status })
       .where(eq(subscriptions.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -447,18 +459,28 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createAdmin(admin: InsertAdmin): Promise<Admin> {
-    const result = await db.insert(admins)
+    await db.insert(admins)
       .values(admin)
-      .returning();
+      .execute();
     
-    return result[0];
+    // Get the inserted admin
+    const [insertedAdmin] = await db.select()
+      .from(admins)
+      .where(eq(admins.username, admin.username))
+      .limit(1);
+    
+    if (!insertedAdmin) {
+      throw new Error('Failed to create admin');
+    }
+    
+    return insertedAdmin;
   }
   
   async updateAdminProfile(id: number, profileData: UpdateAdminProfile): Promise<Admin | undefined> {
     const result = await db.update(admins)
       .set(profileData)
       .where(eq(admins.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -475,7 +497,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(admins)
       .set({ password: newPassword }) // In a real app, hash the password
       .where(eq(admins.id, id))
-      .returning();
+      .execute();
     
     return result.length > 0;
   }
@@ -489,7 +511,7 @@ export class DatabaseStorage implements IStorage {
         lastLogin: now
       })
       .where(eq(admins.id, id))
-      .returning();
+      .execute();
     
     return result.length > 0;
   }
@@ -502,7 +524,7 @@ export class DatabaseStorage implements IStorage {
         ...order,
         status: order.status || "pending"
       })
-      .returning();
+      .execute();
     
     // Create the order items and update juice stock
     for (const item of items) {
@@ -511,14 +533,15 @@ export class DatabaseStorage implements IStorage {
           ...item,
           orderId: newOrder.id
         })
-        .returning();
+        .execute();
       
       // Update the juice stock
       const juice = await this.getJuiceById(item.juiceId);
       if (juice) {
         await db.update(juices)
           .set({ stock: Math.max(0, juice.stock - item.quantity) })
-          .where(eq(juices.id, juice.id));
+          .where(eq(juices.id, juice.id))
+          .execute();
       }
     }
     
@@ -558,7 +581,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(orders)
       .set({ status })
       .where(eq(orders.id, id))
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -575,7 +598,7 @@ export class DatabaseStorage implements IStorage {
   async createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer> {
     const result = await db.insert(loyaltyCustomers)
       .values(customer)
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -605,7 +628,7 @@ export class DatabaseStorage implements IStorage {
         tier
       })
       .where(eq(loyaltyCustomers.id, customerId))
-      .returning();
+      .execute();
     
     // Record activity
     await db.insert(loyaltyActivities)
@@ -615,7 +638,8 @@ export class DatabaseStorage implements IStorage {
         type,
         source,
         sourceId
-      });
+      })
+      .execute();
     
     return updatedCustomer[0];
   }
@@ -647,7 +671,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(websiteSettings.id, currentSettings.id))
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -686,7 +710,7 @@ export class DatabaseStorage implements IStorage {
   async createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward> {
     const result = await db.insert(loyaltyRewards)
       .values(reward)
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -700,7 +724,7 @@ export class DatabaseStorage implements IStorage {
         redeemedAt: now
       })
       .where(eq(loyaltyRewards.id, rewardId))
-      .returning();
+      .execute();
     
     if (result.length === 0) return undefined;
     
@@ -754,7 +778,7 @@ export class DatabaseStorage implements IStorage {
         twitter: "https://twitter.com/sipofeden",
         facebook: "https://facebook.com/sipofeden"
       })
-      .returning();
+      .execute();
     
     return result[0];
   }
@@ -796,7 +820,7 @@ export class DatabaseStorage implements IStorage {
             deviceName: deviceName || existingSubscriptions[0].deviceName
           })
           .where(eq(adminNotificationSubscriptions.id, existingSubscriptions[0].id))
-          .returning();
+          .execute();
         
         return updatedSubscription;
       }
@@ -811,7 +835,7 @@ export class DatabaseStorage implements IStorage {
           deviceName: deviceName || `Device ${Math.floor(Math.random() * 1000)}`,
           active: true
         })
-        .returning();
+        .execute();
       
       return newSubscription;
     } catch (error) {
@@ -847,7 +871,7 @@ export class DatabaseStorage implements IStorage {
           lastUsedAt: new Date()
         })
         .where(eq(adminNotificationSubscriptions.id, id))
-        .returning();
+        .execute();
       
       return updatedSubscription;
     } catch (error) {
@@ -860,7 +884,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db.delete(adminNotificationSubscriptions)
         .where(eq(adminNotificationSubscriptions.id, id))
-        .returning();
+        .execute();
       
       return result.length > 0;
     } catch (error) {

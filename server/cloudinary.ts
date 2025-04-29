@@ -1,7 +1,16 @@
+import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import { Request } from 'express';
+import * as dotenv from 'dotenv';
 
-// Configuration moved to upload function for reliability without requiring Cloudinary
+dotenv.config();
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Configure memory storage for multer (files stored in memory before upload to Cloudinary)
 const storage = multer.memoryStorage();
@@ -21,6 +30,29 @@ export const upload = multer({
     }
   }
 });
+
+/**
+ * Uploads a file to Cloudinary
+ * @param buffer - File buffer
+ * @param folder - Cloudinary folder to upload to
+ * @returns Promise with the upload result
+ */
+export const uploadToCloudinary = async (buffer: Buffer, folder: string = 'sipofeden') => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'auto' },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+
+    uploadStream.end(buffer);
+  });
+};
 
 /**
  * Simple function to convert a buffer to a base64 data URL
