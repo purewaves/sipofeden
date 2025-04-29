@@ -11,19 +11,15 @@ import { formatCurrency } from '@/lib/utils';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, Truck, CreditCard, Copy } from 'lucide-react';
+import { Loader2, CheckCircle, Truck, CreditCard, Copy, Plus, Minus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
 // Create a checkout form schema
 const checkoutFormSchema = z.object({
-  firstName: z.string().min(2, { message: 'First name is required' }),
-  lastName: z.string().min(2, { message: 'Last name is required' }),
+  fullName: z.string().min(2, { message: 'Full name is required' }),
   email: z.string().email({ message: 'Valid email is required' }),
   phone: z.string().min(10, { message: 'Valid phone number is required' }),
   address: z.string().min(5, { message: 'Address is required' }),
-  city: z.string().min(2, { message: 'City is required' }),
-  state: z.string().min(2, { message: 'State is required' }),
-  zipCode: z.string().min(5, { message: 'Zip code is required' }),
   notes: z.string().optional()
 });
 
@@ -31,7 +27,7 @@ type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const CheckoutPage = () => {
   const [, setLocation] = useLocation();
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, updateItemQuantity } = useCart();
   const { toast } = useToast();
   const [paymentStep, setPaymentStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
   const [processing, setProcessing] = useState(false);
@@ -49,14 +45,10 @@ const CheckoutPage = () => {
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
+      fullName: '',
       email: '',
       phone: '',
       address: '',
-      city: '',
-      state: '',
-      zipCode: '',
       notes: ''
     }
   });
@@ -65,7 +57,7 @@ const CheckoutPage = () => {
     mutationFn: async (data: CheckoutFormValues & { items: any[], total: number }) => {
       // Format the data according to what the server expects
       const order = {
-        customerName: `${data.firstName} ${data.lastName}`,
+        customerName: data.fullName,
         customerEmail: data.email,
         total: data.total,
         status: "pending",
@@ -122,6 +114,16 @@ const CheckoutPage = () => {
     setLocation('/');
   };
 
+  const incrementQuantity = (itemId: number, currentQuantity: number) => {
+    updateItemQuantity(itemId, currentQuantity + 1);
+  };
+
+  const decrementQuantity = (itemId: number, currentQuantity: number) => {
+    if (currentQuantity > 1) {
+      updateItemQuantity(itemId, currentQuantity - 1);
+    }
+  };
+
   const copyAccountDetails = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
@@ -171,34 +173,19 @@ const CheckoutPage = () => {
               <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitShipping)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="First name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Last name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your full name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -234,56 +221,18 @@ const CheckoutPage = () => {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address</FormLabel>
+                        <FormLabel>Complete Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="Street address" {...field} />
+                          <Textarea 
+                            placeholder="Enter your complete address" 
+                            className="h-24 resize-none"
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>City</FormLabel>
-                          <FormControl>
-                            <Input placeholder="City" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="state"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>State</FormLabel>
-                          <FormControl>
-                            <Input placeholder="State" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="zipCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Zip Code</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Zip code" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
 
                   <FormField
                     control={form.control}
@@ -326,8 +275,8 @@ const CheckoutPage = () => {
                     <h3 className="font-medium">Delivery Information</h3>
                   </div>
                   <div className="text-sm space-y-1 text-gray-600 pl-7">
-                    <p><span className="font-medium">Name:</span> {form.getValues('firstName')} {form.getValues('lastName')}</p>
-                    <p><span className="font-medium">Address:</span> {form.getValues('address')}, {form.getValues('city')}, {form.getValues('state')} {form.getValues('zipCode')}</p>
+                    <p><span className="font-medium">Name:</span> {form.getValues('fullName')}</p>
+                    <p><span className="font-medium">Address:</span> {form.getValues('address')}</p>
                     <p><span className="font-medium">Contact:</span> {form.getValues('phone')}</p>
                     <p><span className="font-medium">Email:</span> {form.getValues('email')}</p>
                   </div>
@@ -447,7 +396,25 @@ const CheckoutPage = () => {
                   <div key={item.id} className="flex justify-between">
                     <div>
                       <span className="font-medium">{item.juice.name}</span>
-                      <div className="text-sm text-gray-600">Qty: {item.quantity}</div>
+                      <div className="flex items-center mt-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => decrementQuantity(item.id, item.quantity)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="mx-2 text-sm">{item.quantity}</span>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => incrementQuantity(item.id, item.quantity)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="font-medium">{formatCurrency(item.juice.price * item.quantity)}</div>
                   </div>
@@ -482,7 +449,7 @@ const CheckoutPage = () => {
             
             {paymentStep === 'payment' && (
               <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md">
-                <p className="text-sm">Your order will be processed once payment is received.</p>
+                <p className="text-sm">Please review your order details before proceeding with payment.</p>
               </div>
             )}
           </div>
