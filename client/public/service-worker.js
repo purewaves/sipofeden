@@ -1,5 +1,6 @@
 // Service Worker for Sip of Eden Admin PWA
 const CACHE_NAME = 'sip-of-eden-cache-v1';
+const OFFLINE_URL = '/offline.html';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -11,72 +12,89 @@ const STATIC_ASSETS = [
   '/icons/icon-512x512.png'
 ];
 
-// Install event - cache static assets
+// Install event - cache essential assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll([
+        OFFLINE_URL,
+        '/',
+        '/index.html',
+        '/assets/favicon.ico',
+        '/assets/logo.png'
+      ]);
+    })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  const currentCaches = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!currentCaches.includes(cacheName)) {
-            console.log('Service Worker: Clearing old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
       );
-    }).then(() => self.clients.claim())
+    })
   );
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - implement selective caching
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
   // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  if (!url.origin.startsWith(self.location.origin)) {
     return;
   }
 
-  // For API requests, use network only
-  if (event.request.url.includes('/api/')) {
+  // For API requests, use network-only strategy
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
-  // For navigation requests, use network first strategy
-  if (event.request.mode === 'navigate') {
+  // For static assets, use cache-first with network fallback
+  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg)$/)) {
     event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return caches.match('/offline.html');
-        })
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Check if the cached response is fresh
+          const cacheControl = cachedResponse.headers.get('Cache-Control');
+          if (cacheControl && cacheControl.includes('immutable')) {
+            return cachedResponse;
+          }
+        }
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        }).catch(() => cachedResponse || response);
+      })
     );
     return;
   }
 
-  // For other requests, try network first with cache fallback
+  // For HTML and other dynamic content, use network-first strategy
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+        // Don't cache non-successful responses
+        if (!response || response.status !== 200) {
+          return response;
         }
         return response;
       })
       .catch(() => {
+        // If offline and it's a navigation request, return offline page
+        if (event.request.mode === 'navigate') {
+          return caches.match(OFFLINE_URL);
+        }
         return caches.match(event.request);
       })
   );

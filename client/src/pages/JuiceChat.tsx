@@ -42,53 +42,9 @@ interface JuiceRecommendation {
 const juiceData: JuiceRecommendation[] = [
   {
     id: 1,
-    name: "Wild Taste",
-    image: "/assets/10f5e9d3-8a86-4858-8ad1-5859e7e98e89-removebg-preview.png",
-    ingredients: "Cucumber + Apple + Spinach",
-    benefits: [
-      "Rich in vitamins A, C, K and antioxidants",
-      "Supports hydration, digestion, and immune health",
-      "Low sugar and adds a refreshing taste",
-      "Provides anti-inflammatory effect"
-    ],
-    tags: ["detox", "immunity", "refreshing", "digestion", "low sugar", "hydration"],
-    price: 2500
-  },
-  {
-    id: 2,
-    name: "Orange Juice",
-    image: "/assets/8e75a215-9279-4c1f-8c70-c51150da25a5-removebg-preview.png",
-    ingredients: "Orange",
-    benefits: [
-      "High in vitamin C which boosts immune function",
-      "Contains antioxidants that fight free radicals",
-      "Reduces inflammation",
-      "Rich in vitamins that support skin health",
-      "May help lower cholesterol"
-    ],
-    tags: ["immunity", "skin health", "antioxidants", "vitamin c"],
-    price: 2000
-  },
-  {
-    id: 3,
-    name: "Melon Twist",
-    image: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
-    ingredients: "Watermelon + Apple + Mint + Lemon",
-    benefits: [
-      "Excellent for hydration due to watermelon's high water content",
-      "Contains vitamin A and potassium",
-      "The mint and lemon aid combination supports heart health",
-      "Reduces inflammation and aids digestion",
-      "The mint and lemon add refreshing digestive benefits"
-    ],
-    tags: ["hydration", "heart health", "refreshing", "digestion", "anti-inflammatory"],
-    price: 2200
-  },
-  {
-    id: 4,
     name: "Liquid Sunset",
     image: "/assets/fae075af-fc0e-481c-8512-a972f44425b6-removebg-preview.png",
-    ingredients: "Carrot + Turmeric + Pineapple + Ginger",
+    ingredients: "Carrot, turmeric, pineapple, and ginger blend for immunity boosting.",
     benefits: [
       "Powerful anti-inflammatory blend rich in carotenoids",
       "Turmeric and ginger provide strong anti-inflammatory and antioxidant properties",
@@ -97,13 +53,42 @@ const juiceData: JuiceRecommendation[] = [
       "Reduces inflammation"
     ],
     tags: ["immunity", "anti-inflammatory", "digestion", "pain relief"],
-    price: 2300
+    price: 3500
   },
   {
-    id: 5,
-    name: "Caribbean Magic",
+    id: 2,
+    name: "Green Guardian",
+    image: "/assets/10f5e9d3-8a86-4858-8ad1-5859e7e98e89-removebg-preview.png",
+    ingredients: "Kale, cucumber, green apple, mint, and a hint of lemon for detoxification.",
+    benefits: [
+      "Rich in vitamins A, C, K and antioxidants",
+      "Supports hydration, digestion, and immune health",
+      "Low sugar and adds a refreshing taste",
+      "Provides anti-inflammatory effect"
+    ],
+    tags: ["detox", "immunity", "refreshing", "digestion", "low sugar", "hydration"],
+    price: 3200
+  },
+  {
+    id: 3,
+    name: "Berry Bliss",
+    image: "/assets/8e75a215-9279-4c1f-8c70-c51150da25a5-removebg-preview.png",
+    ingredients: "Strawberry, blueberry, raspberry, and apple juice blend rich in antioxidants.",
+    benefits: [
+      "High in vitamin C which boosts immune function",
+      "Contains antioxidants that fight free radicals",
+      "Reduces inflammation",
+      "Rich in vitamins that support skin health",
+      "May help lower cholesterol"
+    ],
+    tags: ["immunity", "skin health", "antioxidants", "vitamin c"],
+    price: 3500
+  },
+  {
+    id: 4,
+    name: "Zesty Citrus",
     image: "/assets/ac4187c6-a203-4f78-852d-d28399fba46d-removebg-preview.png",
-    ingredients: "Mango + Pineapple + Lemon",
+    ingredients: "Orange, lemon, and grapefruit with a hint of ginger for immune support.",
     benefits: [
       "Rich in vitamins A, C and digestive enzymes",
       "Tropical blend supports immune health, digestion, and skin health",
@@ -111,13 +96,27 @@ const juiceData: JuiceRecommendation[] = [
       "Mango offers vision-supporting vitamin A"
     ],
     tags: ["immunity", "digestion", "skin health", "antioxidants", "tropical"],
-    price: 2400
+    price: 3000
+  },
+  {
+    id: 5,
+    name: "Energy Boost",
+    image: "/assets/acf70a16-0bc1-4fff-ab1f-8d93de00e191-removebg-preview.png",
+    ingredients: "Beetroot, apple, ginger, and lemon for natural energy enhancement.",
+    benefits: [
+      "Powerful blood pressure regulator due to beetroot's nitrates",
+      "Contains anti-inflammatory compounds from ginger",
+      "Rich in vitamins A, C, and B6",
+      "May support improved circulation, athletic performance, and detoxification"
+    ],
+    tags: ["blood pressure", "athletic performance", "circulation", "detox", "anti-inflammatory"],
+    price: 3700
   },
   {
     id: 6,
-    name: "Watermelon & Pineapple Juice",
+    name: "Tropical Wave",
     image: "/assets/ea4e5741-0311-4042-94b0-5d295542c844-removebg-preview.png",
-    ingredients: "Watermelon + Pineapple",
+    ingredients: "Pineapple, mango, passion fruit, and coconut water for hydration.",
     benefits: [
       "Excellent for hydration and electrolyte balance",
       "Contains vitamins A, C and B6",
@@ -126,7 +125,7 @@ const juiceData: JuiceRecommendation[] = [
       "Bromelain from pineapple has anti-inflammatory properties"
     ],
     tags: ["hydration", "heart health", "digestion", "electrolytes", "anti-inflammatory"],
-    price: 2100
+    price: 3300
   },
   {
     id: 7,
@@ -159,42 +158,42 @@ const juiceData: JuiceRecommendation[] = [
 
 // Keywords for matching user queries to juice recommendations
 const keywordMap: Record<string, string[]> = {
-  "immunity": ["Wild Taste", "Orange Juice", "Liquid Sunset", "Caribbean Magic", "Dragon's Breath"],
-  "immune": ["Wild Taste", "Orange Juice", "Liquid Sunset", "Caribbean Magic", "Dragon's Breath"],
-  "cold": ["Orange Juice", "Dragon's Breath"],
-  "flu": ["Orange Juice", "Dragon's Breath"],
-  "digestion": ["Wild Taste", "Melon Twist", "Liquid Sunset", "Caribbean Magic", "Watermelon & Pineapple Juice", "Dragon's Breath"],
-  "stomach": ["Wild Taste", "Melon Twist", "Liquid Sunset", "Watermelon & Pineapple Juice", "Dragon's Breath"],
-  "digestive": ["Wild Taste", "Melon Twist", "Liquid Sunset", "Watermelon & Pineapple Juice", "Dragon's Breath"],
-  "hydration": ["Wild Taste", "Melon Twist", "Watermelon & Pineapple Juice"],
-  "hydrate": ["Wild Taste", "Melon Twist", "Watermelon & Pineapple Juice"],
-  "thirsty": ["Melon Twist", "Watermelon & Pineapple Juice"],
-  "skin": ["Orange Juice", "Caribbean Magic"],
-  "complexion": ["Orange Juice", "Caribbean Magic"],
-  "acne": ["Orange Juice", "Caribbean Magic"],
-  "inflammation": ["Melon Twist", "Liquid Sunset", "Watermelon & Pineapple Juice", "Beetroot Mix", "Dragon's Breath"],
-  "inflammatory": ["Melon Twist", "Liquid Sunset", "Watermelon & Pineapple Juice", "Beetroot Mix", "Dragon's Breath"],
+  "immunity": ["Liquid Sunset", "Green Guardian", "Berry Bliss", "Zesty Citrus", "Dragon's Breath"],
+  "immune": ["Liquid Sunset", "Green Guardian", "Berry Bliss", "Zesty Citrus", "Dragon's Breath"],
+  "cold": ["Zesty Citrus", "Dragon's Breath"],
+  "flu": ["Zesty Citrus", "Dragon's Breath"],
+  "digestion": ["Liquid Sunset", "Green Guardian", "Zesty Citrus", "Tropical Wave", "Dragon's Breath"],
+  "stomach": ["Liquid Sunset", "Green Guardian", "Zesty Citrus", "Tropical Wave", "Dragon's Breath"],
+  "digestive": ["Liquid Sunset", "Green Guardian", "Zesty Citrus", "Tropical Wave", "Dragon's Breath"],
+  "hydration": ["Green Guardian", "Tropical Wave"],
+  "hydrate": ["Green Guardian", "Tropical Wave"],
+  "thirsty": ["Tropical Wave"],
+  "skin": ["Berry Bliss", "Zesty Citrus"],
+  "complexion": ["Berry Bliss", "Zesty Citrus"],
+  "acne": ["Berry Bliss", "Zesty Citrus"],
+  "inflammation": ["Liquid Sunset", "Tropical Wave", "Energy Boost", "Dragon's Breath"],
+  "inflammatory": ["Liquid Sunset", "Tropical Wave", "Energy Boost", "Dragon's Breath"],
   "pain": ["Liquid Sunset"],
   "ache": ["Liquid Sunset"],
-  "heart": ["Melon Twist", "Watermelon & Pineapple Juice"],
-  "cardiovascular": ["Melon Twist", "Watermelon & Pineapple Juice", "Beetroot Mix"],
-  "blood pressure": ["Beetroot Mix"],
-  "hypertension": ["Beetroot Mix"],
-  "pressure": ["Beetroot Mix"],
-  "circulation": ["Beetroot Mix"],
-  "detox": ["Wild Taste", "Beetroot Mix"],
-  "cleanse": ["Wild Taste", "Beetroot Mix"],
-  "energy": ["Orange Juice", "Beetroot Mix"],
-  "tired": ["Orange Juice", "Beetroot Mix"],
-  "fatigue": ["Orange Juice", "Beetroot Mix"],
-  "workout": ["Beetroot Mix", "Watermelon & Pineapple Juice"],
-  "exercise": ["Beetroot Mix", "Watermelon & Pineapple Juice"],
-  "athletic": ["Beetroot Mix"],
-  "performance": ["Beetroot Mix"],
-  "vitamin c": ["Orange Juice", "Caribbean Magic", "Dragon's Breath"],
-  "vitamin a": ["Wild Taste", "Melon Twist", "Caribbean Magic", "Watermelon & Pineapple Juice"],
-  "antioxidant": ["Wild Taste", "Orange Juice", "Caribbean Magic"],
-  "refreshing": ["Wild Taste", "Melon Twist"]
+  "heart": ["Tropical Wave"],
+  "cardiovascular": ["Tropical Wave", "Energy Boost"],
+  "blood pressure": ["Energy Boost"],
+  "hypertension": ["Energy Boost"],
+  "pressure": ["Energy Boost"],
+  "circulation": ["Energy Boost"],
+  "detox": ["Green Guardian", "Energy Boost"],
+  "cleanse": ["Green Guardian", "Energy Boost"],
+  "energy": ["Zesty Citrus", "Energy Boost"],
+  "tired": ["Zesty Citrus", "Energy Boost"],
+  "fatigue": ["Zesty Citrus", "Energy Boost"],
+  "workout": ["Energy Boost", "Tropical Wave"],
+  "exercise": ["Energy Boost", "Tropical Wave"],
+  "athletic": ["Energy Boost"],
+  "performance": ["Energy Boost"],
+  "vitamin c": ["Zesty Citrus", "Dragon's Breath"],
+  "vitamin a": ["Green Guardian", "Tropical Wave"],
+  "antioxidant": ["Green Guardian", "Berry Bliss", "Zesty Citrus"],
+  "refreshing": ["Green Guardian", "Tropical Wave"]
 };
 
 const JuiceChat: React.FC = () => {
@@ -216,7 +215,7 @@ const JuiceChat: React.FC = () => {
     
     // Find the juice in our data
     const juice = juiceData.find(j => j.id === juiceId);
-    if (!juice) return;
+    if (!juice || !juice.id) return;
     
     // Convert our JuiceRecommendation to the format expected by the cart
     const cartJuice = {
@@ -274,8 +273,8 @@ const JuiceChat: React.FC = () => {
     }
   };
 
-  const generateResponse = (query: string): Message => {
-    const lowercaseQuery = query.toLowerCase();
+  const generateResponse = (message: string): Message => {
+    const lowercaseQuery = message.toLowerCase();
     let matchedJuices: Set<string> = new Set();
     
     // Find relevant juices based on keywords
@@ -297,6 +296,14 @@ const JuiceChat: React.FC = () => {
       
       // If still no matches, offer a general recommendation
       const randomJuice = juiceData[Math.floor(Math.random() * juiceData.length)];
+      if (!randomJuice) {
+        return {
+          id: Date.now().toString(),
+          content: "I'm having trouble finding a juice recommendation. Could you please tell me more about what you're looking for?",
+          sender: "bot"
+        };
+      }
+      
       return {
         id: Date.now().toString(),
         content: `I don't have a specific recommendation based on your query, but I think you might enjoy our ${randomJuice.name}. Would you like to know more about it, or can you tell me more specifically what health benefits you're looking for?`,
@@ -310,8 +317,17 @@ const JuiceChat: React.FC = () => {
     
     // If multiple matches, select one
     const selectedJuiceName = matchedJuiceArray[Math.floor(Math.random() * matchedJuiceArray.length)];
-    const selectedJuice = juiceData.find(juice => juice.name === selectedJuiceName)!;
+    const selectedJuice = juiceData.find(juice => juice.name === selectedJuiceName);
     
+    // Ensure we found a valid juice
+    if (!selectedJuice) {
+      return {
+        id: Date.now().toString(),
+        content: "I apologize, but I'm having trouble finding the perfect juice recommendation. Could you please try describing your needs again?",
+        sender: "bot"
+      };
+    }
+
     return {
       id: Date.now().toString(),
       content: `Based on your needs, I recommend our **${selectedJuice.name}**! It's a perfect blend of ${selectedJuice.ingredients} that provides exactly what you're looking for. Would you like to know more about its specific benefits?`,
