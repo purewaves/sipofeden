@@ -1402,6 +1402,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add a debug endpoint to check DB state directly
+  app.get('/api/debug', async (req, res) => {
+    try {
+      console.log('[DEBUG API] Checking database state...');
+      
+      // Check if DB connection works
+      await pool.query('SELECT NOW() as time');
+      console.log('[DEBUG API] Database connection successful');
+      
+      // Get tables info
+      const tablesQuery = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      const tables = tablesQuery.rows.map(row => row.table_name);
+      
+      // Check juices count
+      const juicesQuery = await pool.query('SELECT COUNT(*) as count FROM juices');
+      const juicesCount = juicesQuery.rows[0].count;
+      
+      // Check admin count
+      const adminsQuery = await pool.query('SELECT COUNT(*) as count FROM admins');
+      const adminsCount = adminsQuery.rows[0].count;
+      
+      // Get first juice (if exists)
+      let sampleJuice = null;
+      if (juicesCount > 0) {
+        const juiceQuery = await pool.query('SELECT * FROM juices LIMIT 1');
+        sampleJuice = juiceQuery.rows[0];
+      }
+      
+      return res.json({
+        status: 'success',
+        connectionSuccessful: true,
+        serverTime: new Date().toISOString(),
+        tables,
+        counts: {
+          juices: juicesCount,
+          admins: adminsCount
+        },
+        sampleJuice
+      });
+    } catch (error) {
+      console.error('[DEBUG API] Error checking database:', error);
+      return res.status(500).json({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : null
+      });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
   
