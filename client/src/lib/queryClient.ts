@@ -1,6 +1,36 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
+ * Helper to determine if we're running on Vercel or locally
+ */
+export function getApiBaseUrl(): string {
+  // Use window.location to determine the current domain
+  const isProduction = window.location.hostname !== 'localhost';
+  
+  // If we're in production (on Vercel), use the full domain
+  // If local, use the API server port (5000)
+  return isProduction 
+    ? `${window.location.origin}` 
+    : 'http://localhost:5000';
+}
+
+/**
+ * Ensures a URL is properly formed with the base API URL
+ */
+export function getFullApiUrl(path: string): string {
+  // If the path already includes http or https, assume it's a full URL
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  
+  // Ensure path starts with a slash
+  const formattedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // Combine with the base URL
+  return `${getApiBaseUrl()}${formattedPath}`;
+}
+
+/**
  * Enhanced error handling for API responses
  * Attempts to parse error messages from response body
  */
@@ -84,8 +114,12 @@ export async function apiRequest<T = any>(
     }
   }
   
+  // Get the full URL with the base path
+  const fullUrl = getFullApiUrl(url);
+  console.log(`Making ${method} request to: ${fullUrl}`);
+  
   try {
-    const res = await fetch(url, {
+    const res = await fetch(fullUrl, {
       method,
       headers,
       body,
@@ -122,7 +156,7 @@ export async function apiRequest<T = any>(
       }
     }
   } catch (error) {
-    console.error(`API request error (${method} ${url}):`, error);
+    console.error(`API request error (${method} ${fullUrl}):`, error);
     throw error;
   }
 }
@@ -138,7 +172,11 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     try {
-      const res = await fetch(queryKey[0] as string, {
+      // Get the full URL with the base path
+      const url = getFullApiUrl(queryKey[0] as string);
+      console.log(`Making API request to: ${url}`);
+      
+      const res = await fetch(url, {
         credentials: "include",
         headers: {
           'Accept': 'application/json',
@@ -164,7 +202,7 @@ export const getQueryFn: <T>(options: {
       await throwIfResNotOk(res);
       return await res.json();
     } catch (error) {
-      console.error(`Query error (${queryKey[0]}):`, error);
+      console.error(`Query error (${url}):`, error);
       throw error;
     }
   };
