@@ -1,5 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Control debug logging based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const logDebug = (message: string, ...args: any[]) => {
+  if (!isProduction) {
+    console.log(`[API] ${message}`, ...args);
+  }
+};
+
 /**
  * Helper to determine if we're running on Vercel or locally
  */
@@ -64,6 +72,12 @@ async function handleResponseError(res: Response): Promise<never> {
       throw new Error('Session expired. Please log in again.');
     } else if (res.status === 401) {
       throw new Error('Authentication required. Please log in.');
+    } else if (res.status === 403) {
+      throw new Error('You do not have permission to access this resource.');
+    } else if (res.status === 404) {
+      throw new Error('The requested resource was not found.');
+    } else if (res.status >= 500) {
+      throw new Error('Server error. Please try again later.');
     }
     
     throw new Error(`${res.status}: ${text}`);
@@ -97,6 +111,7 @@ export async function apiRequest<T = any>(
   url: string,
   data?: unknown | undefined,
   isFormData: boolean = false,
+  retries: number = 1
 ): Promise<T> {
   const headers: Record<string, string> = {
     'X-Requested-With': 'XMLHttpRequest', // Help server identify XHR requests
@@ -118,7 +133,7 @@ export async function apiRequest<T = any>(
   
   // Get the full URL with the base path
   const fullUrl = getFullApiUrl(url);
-  console.log(`Making ${method} request to: ${fullUrl}`);
+  logDebug(`Making ${method} request to: ${fullUrl}`);
   
   try {
     const res = await fetch(fullUrl, {
@@ -158,6 +173,16 @@ export async function apiRequest<T = any>(
       }
     }
   } catch (error) {
+    // Network-level error (could be CORS, connection issues, etc.)
+    if (!(error instanceof Error) || !(error as any).status) {
+      // Only retry network-level errors (not HTTP status errors)
+      if (retries > 0) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return apiRequest(method, url, data, isFormData, retries - 1);
+      }
+    }
+    
     console.error(`API request error (${method} ${fullUrl}):`, error);
     throw error;
   }
@@ -176,7 +201,7 @@ export const getQueryFn: <T>(options: {
     try {
       // Get the full URL with the base path
       const apiUrl = getFullApiUrl(queryKey[0] as string);
-      console.log(`Making API request to: ${apiUrl}`);
+      logDebug(`Making API request to: ${apiUrl}`);
       
       const res = await fetch(apiUrl, {
         credentials: "include",
@@ -202,7 +227,24 @@ export const getQueryFn: <T>(options: {
       }
 
       await throwIfResNotOk(res);
-      return await res.json();
+      
+      // Improved response handling
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status} ${res.statusText}`);
+      }
+      
+      // Handle no content responses properly
+      if (res.status === 204) {
+        return null as unknown as T;
+      }
+      
+      // Parse JSON response
+      try {
+        return await res.json();
+      } catch (parseError) {
+        console.error('Failed to parse JSON response', parseError);
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
       console.error(`Query error (${queryKey[0]}):`, error);
       throw error;
@@ -228,7 +270,7 @@ export const queryClient = new QueryClient({
         // Retry network/timeout errors
         return failureCount < 2;
       },
-      retryDelay: 1000, // 1 second between retries
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff with 30s max
     },
     mutations: {
       retry: false, // Don't retry mutations to avoid duplicate operations
