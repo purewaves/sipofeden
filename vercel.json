@@ -20,8 +20,22 @@
   ],
   "routes": [
     {
+      "src": "/api/juices/debug",
+      "dest": "dist/server/index.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "dist/server/index.js"
+      "dest": "dist/server/index.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     },
     {
       "src": "/uploads/(.*)",

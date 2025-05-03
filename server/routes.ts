@@ -1402,54 +1402,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add a debug endpoint to check DB state directly
-  app.get('/api/debug', async (req, res) => {
+  // Enhanced debug endpoint with connection test and CORS headers
+  app.get('/api/juices/debug', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
     try {
-      console.log('[DEBUG API] Checking database state...');
+      // 1. Test DB Connection
+      const connectionTest = await pool.query('SELECT NOW() as time');
+      console.log('[DEBUG] Database connection test:', connectionTest.rows[0].time);
       
-      // Check if DB connection works
-      await pool.query('SELECT NOW() as time');
-      console.log('[DEBUG API] Database connection successful');
+      // 2. Get raw juices from DB using direct query
+      console.log('[DEBUG] Attempting to query juices table...');
+      const directJuicesQuery = await pool.query('SELECT * FROM juices ORDER BY id LIMIT 10');
+      const directJuicesCount = directJuicesQuery.rows.length;
       
-      // Get tables info
-      const tablesQuery = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public'
-      `);
-      const tables = tablesQuery.rows.map(row => row.table_name);
-      
-      // Check juices count
-      const juicesQuery = await pool.query('SELECT COUNT(*) as count FROM juices');
-      const juicesCount = juicesQuery.rows[0].count;
-      
-      // Check admin count
-      const adminsQuery = await pool.query('SELECT COUNT(*) as count FROM admins');
-      const adminsCount = adminsQuery.rows[0].count;
-      
-      // Get first juice (if exists)
-      let sampleJuice = null;
-      if (juicesCount > 0) {
-        const juiceQuery = await pool.query('SELECT * FROM juices LIMIT 1');
-        sampleJuice = juiceQuery.rows[0];
+      // 3. Get juices using storage.ts methods
+      console.log('[DEBUG] Attempting to fetch juices via storage.getAllJuices...');
+      let storageJuices = [];
+      let storageError = null;
+      try {
+        storageJuices = await storage.getAllJuices();
+      } catch (error) {
+        storageError = error instanceof Error ? error.message : String(error);
+        console.error('[DEBUG] Error fetching from storage:', storageError);
       }
       
+      // 4. Get environment info
+      const environment = {
+        nodeEnv: process.env.NODE_ENV,
+        databaseUrl: process.env.DATABASE_URL ? 'Set (hidden for security)' : 'Missing',
+        hostname: req.headers.host,
+        vercel: process.env.VERCEL === '1' ? 'Yes' : 'No',
+        cloudinary: process.env.CLOUDINARY_URL ? 'Set (hidden for security)' : 'Missing'
+      };
+      
+      // Return comprehensive debug info
       return res.json({
-        status: 'success',
-        connectionSuccessful: true,
-        serverTime: new Date().toISOString(),
-        tables,
-        counts: {
-          juices: juicesCount,
-          admins: adminsCount
+        timestamp: new Date().toISOString(),
+        success: true,
+        connection: {
+          successful: true,
+          time: connectionTest.rows[0].time
         },
-        sampleJuice
+        juiceData: {
+          directQuery: {
+            count: directJuicesCount,
+            sample: directJuicesCount > 0 ? directJuicesQuery.rows[0] : null
+          },
+          storageMethod: {
+            count: storageJuices.length,
+            error: storageError,
+            sample: storageJuices.length > 0 ? storageJuices[0] : null
+          }
+        },
+        environment
       });
     } catch (error) {
-      console.error('[DEBUG API] Error checking database:', error);
+      console.error('[DEBUG] Error in debug endpoint:', error);
       return res.status(500).json({
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
         stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : null
       });
     }
