@@ -6,7 +6,6 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { fileURLToPath } from 'url';
 import { VitePWA } from 'vite-plugin-pwa';
 import { visualizer } from 'rollup-plugin-visualizer';
-import viteCompression from 'vite-plugin-compression';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,9 +78,6 @@ export default defineConfig(({ command, mode }) => {
           ]
         }
       }),
-      // Bundle compression for production builds
-      isProd && viteCompression({ algorithm: 'br' }),
-      isProd && viteCompression({ algorithm: 'gzip' }),
       // Bundle visualization for analysis if ANALYZE is true
       isProd && env.ANALYZE === 'true' && visualizer({
         open: true,
