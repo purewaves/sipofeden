@@ -5,7 +5,6 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { fileURLToPath } from 'url';
 import { VitePWA } from 'vite-plugin-pwa';
-import { visualizer } from 'rollup-plugin-visualizer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,13 +77,6 @@ export default defineConfig(({ command, mode }) => {
           ]
         }
       }),
-      // Bundle visualization for analysis if ANALYZE is true
-      isProd && env.ANALYZE === 'true' && visualizer({
-        open: true,
-        filename: 'dist/stats.html',
-        gzipSize: true,
-        brotliSize: true
-      })
     ],
     server: {
       port: 3000,
