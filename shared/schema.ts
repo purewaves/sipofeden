@@ -1,19 +1,19 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, primaryKey, timestamp } from "drizzle-orm/pg-core";
+import { pgTable as table, text, integer, boolean, doublePrecision, primaryKey, timestamp, varchar, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Juice product
-export const juices = pgTable("juices", {
+export const juices = table("juices", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   price: doublePrecision("price").notNull(),
-  imageUrl: text("image_url").notNull(),
-  category: text("category").notNull(),
+  imageUrl: varchar("image_url", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
   stock: integer("stock").notNull().default(0),
   featured: boolean("featured").default(false),
-  sku: text("sku").notNull().unique()
+  sku: varchar("sku", { length: 100 }).notNull().unique()
 });
 
 export const juicesRelations = relations(juices, ({ many }) => ({
@@ -29,10 +29,10 @@ export const insertJuiceSchema = createInsertSchema(juices).omit({
 // These will be added by the application logic at runtime
 
 // Cart items
-export const cartItems = pgTable("cart_items", {
+export const cartItems = table("cart_items", {
   id: serial("id").primaryKey(),
   juiceId: integer("juice_id").notNull(),
-  sessionId: text("session_id").notNull(),
+  sessionId: varchar("session_id", { length: 255 }).notNull(),
   quantity: integer("quantity").notNull().default(1)
 });
 
@@ -48,13 +48,13 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
 });
 
 // Subscription plans
-export const subscriptionPlans = pgTable("subscription_plans", {
+export const subscriptionPlans = table("subscription_plans", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   price: doublePrecision("price").notNull(),
-  frequency: text("frequency").notNull(), // weekly, monthly, etc.
-  features: text("features").array().notNull(), // Array of features
+  frequency: varchar("frequency", { length: 100 }).notNull(), // weekly, monthly, etc.
+  features: text("features").notNull(), // JSON string of features array
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -64,16 +64,16 @@ export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans
 });
 
 // Subscription orders (for individual customer subscriptions)
-export const subscriptions = pgTable("subscriptions", {
+export const subscriptions = table("subscriptions", {
   id: serial("id").primaryKey(),
   planId: integer("plan_id").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone"),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
   address: text("address").notNull(),
-  status: text("status").notNull().default("active"), // active, paused, cancelled
-  startDate: timestamp("start_date").notNull(),
-  nextDelivery: timestamp("next_delivery"),
+  status: varchar("status", { length: 100 }).notNull().default("active"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  nextDelivery: timestamp("next_delivery").defaultNow(),
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -90,13 +90,13 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 // Juice Bundles
-export const bundles = pgTable("bundles", {
+export const bundles = table("bundles", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   price: doublePrecision("price").notNull(),
-  juiceIds: integer("juice_ids").array().notNull(), // Array of juice IDs
-  imageUrl: text("image_url"),
+  juiceIds: text("juice_ids").notNull(), // JSON string of juice IDs array
+  imageUrl: varchar("image_url", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -106,13 +106,13 @@ export const insertBundleSchema = createInsertSchema(bundles).omit({
 });
 
 // Order Table
-export const orders = pgTable("orders", {
+export const orders = table("orders", {
   id: serial("id").primaryKey(),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
+  customerName: varchar("customer_name", { length: 255 }).notNull(),
+  customerEmail: varchar("customer_email", { length: 255 }).notNull(),
   total: doublePrecision("total").notNull(),
-  status: text("status").notNull().default("pending"),
-  createdAt: text("created_at").notNull() // Store as ISO string
+  status: varchar("status", { length: 100 }).notNull().default("pending"),
+  createdAt: varchar("created_at", { length: 255 }).notNull() // Store as ISO string
 });
 
 export const ordersRelations = relations(orders, ({ many }) => ({
@@ -124,7 +124,7 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
 });
 
 // Order Items
-export const orderItems = pgTable("order_items", {
+export const orderItems = table("order_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").notNull(),
   juiceId: integer("juice_id").notNull(),
@@ -148,15 +148,15 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
 });
 
 // Admin users
-export const admins = pgTable("admins", {
+export const admins = table("admins", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").default(""),
-  fullName: text("full_name").default(""),
-  phoneNumber: text("phone_number").default(""),
-  isFirstLogin: boolean("is_first_login").default(true),
-  lastLogin: text("last_login").default(""),
+  username: varchar("username", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).default(""),
+  fullName: varchar("full_name", { length: 255 }).default(""),
+  phoneNumber: varchar("phone_number", { length: 20 }).default(""),
+  isFirstLogin: boolean("is_first_login").default(false),
+  lastLogin: varchar("last_login", { length: 255 }).default(""),
 });
 
 export const insertAdminSchema = createInsertSchema(admins).omit({
@@ -205,12 +205,12 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 // Loyalty Points
-export const loyaltyCustomers = pgTable("loyalty_customers", {
+export const loyaltyCustomers = table("loyalty_customers", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
   points: integer("points").notNull().default(0),
-  tier: text("tier").notNull().default("bronze"), // bronze, silver, gold, platinum
+  tier: varchar("tier", { length: 100 }).notNull().default("bronze"), // bronze, silver, gold, platinum
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -227,14 +227,14 @@ export const updateLoyaltyPointsSchema = z.object({
   source: z.string() // 'order', 'subscription', 'referral', etc.
 });
 
-export const loyaltyRewards = pgTable("loyalty_rewards", {
+export const loyaltyRewards = table("loyalty_rewards", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").notNull(),
   description: text("description").notNull(),
   pointsRequired: integer("points_required").notNull(),
   redeemed: boolean("redeemed").default(false),
-  redeemedAt: timestamp("redeemed_at"),
-  expiresAt: timestamp("expires_at")
+  redeemedAt: timestamp("redeemed_at").defaultNow(),
+  expiresAt: timestamp("expires_at").defaultNow()
 });
 
 export const loyaltyRewardsRelations = relations(loyaltyRewards, ({ one }) => ({
@@ -250,13 +250,13 @@ export const insertLoyaltyRewardSchema = createInsertSchema(loyaltyRewards).omit
   redeemedAt: true
 });
 
-export const loyaltyActivities = pgTable("loyalty_activities", {
+export const loyaltyActivities = table("loyalty_activities", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").notNull(),
   points: integer("points").notNull(),
-  type: text("type").notNull(), // 'earn' or 'redeem'
-  source: text("source").notNull(), // 'order', 'subscription', 'referral', 'reward', etc.
-  sourceId: text("source_id"), // Optional reference to the source object ID (order ID, etc.)
+  type: varchar("type", { length: 100 }).notNull(), // 'earn' or 'redeem'
+  source: varchar("source", { length: 255 }).notNull(), // 'order', 'subscription', 'referral', 'reward', etc.
+  sourceId: varchar("source_id", { length: 255 }), // Optional reference to the source object ID (order ID, etc.)
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -288,15 +288,15 @@ export type LoyaltyActivity = typeof loyaltyActivities.$inferSelect;
 export type InsertLoyaltyActivity = z.infer<typeof insertLoyaltyActivitySchema>;
 
 // Website Settings
-export const websiteSettings = pgTable("website_settings", {
+export const websiteSettings = table("website_settings", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().default("Sip of Eden"),
-  businessEmail: text("business_email").notNull().default("contact@sipofeden.com"),
-  phoneNumber: text("phone_number").notNull().default("+234 000 0000 000"),
+  name: varchar("name", { length: 255 }).notNull().default("Sip of Eden"),
+  businessEmail: varchar("business_email", { length: 255 }).notNull().default("contact@sipofeden.com"),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull().default("+234 000 0000 000"),
   address: text("address").notNull().default("Lagos, Nigeria"),
-  instagram: text("instagram").default("https://instagram.com/sipofeden"),
-  twitter: text("twitter").default("https://twitter.com/sipofeden"),
-  facebook: text("facebook").default("https://facebook.com/sipofeden"),
+  instagram: varchar("instagram", { length: 255 }).default("https://instagram.com/sipofeden"),
+  twitter: varchar("twitter", { length: 255 }).default("https://twitter.com/sipofeden"),
+  facebook: varchar("facebook", { length: 255 }).default("https://facebook.com/sipofeden"),
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
@@ -309,15 +309,15 @@ export type WebsiteSettings = typeof websiteSettings.$inferSelect;
 export type UpdateWebsiteSettings = z.infer<typeof updateWebsiteSettingsSchema>;
 
 // Admin Notification Subscriptions
-export const adminNotificationSubscriptions = pgTable("admin_notification_subscriptions", {
+export const adminNotificationSubscriptions = table("admin_notification_subscriptions", {
   id: serial("id").primaryKey(),
   adminId: integer("admin_id").references(() => admins.id, { onDelete: 'cascade' }),
   subscription: text("subscription").notNull(), // JSON string of PushSubscription object
-  userAgent: text("user_agent"), // Browser user agent info
-  deviceName: text("device_name"), // Custom device name (optional)
+  userAgent: varchar("user_agent", { length: 255 }), // Browser user agent info
+  deviceName: varchar("device_name", { length: 255 }), // Custom device name (optional)
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  lastUsedAt: timestamp("last_used_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at").defaultNow()
 });
 
 export const adminNotificationSubscriptionsRelations = relations(adminNotificationSubscriptions, ({ one }) => ({

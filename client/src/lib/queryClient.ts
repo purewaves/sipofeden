@@ -6,6 +6,9 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
  */
 async function handleResponseError(res: Response): Promise<never> {
   try {
+    // Clone the response to avoid "body already read" errors
+    const resClone = res.clone();
+    
     // Try to parse as JSON first
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -21,8 +24,8 @@ async function handleResponseError(res: Response): Promise<never> {
       }
     }
     
-    // If not JSON or JSON parsing failed, get text
-    const text = await res.text() || res.statusText;
+    // If not JSON or JSON parsing failed, get text from the clone
+    const text = await resClone.text() || res.statusText;
     
     // Handle session expired specifically
     if (res.status === 440) {
@@ -48,7 +51,7 @@ async function handleResponseError(res: Response): Promise<never> {
 /**
  * Helper to check if response is OK or throw appropriate error
  */
-async function throwIfResNotOk(res: Response) {
+async function throwIfResNotOk(res: Response): Promise<void> {
   if (!res.ok) {
     await handleResponseError(res);
   }
@@ -57,12 +60,12 @@ async function throwIfResNotOk(res: Response) {
 /**
  * Enhanced API request with robust error handling and session management
  */
-export async function apiRequest(
+export async function apiRequest<T = any>(
   method: string,
   url: string,
   data?: unknown | undefined,
   isFormData: boolean = false,
-): Promise<Response> {
+): Promise<T> {
   const headers: Record<string, string> = {
     'X-Requested-With': 'XMLHttpRequest', // Help server identify XHR requests
   };
@@ -97,7 +100,27 @@ export async function apiRequest(
     }
 
     await throwIfResNotOk(res);
-    return res;
+    
+    // Only try to parse JSON if there's content
+    const contentLength = res.headers.get('content-length');
+    const contentType = res.headers.get('content-type');
+    
+    if (contentLength && parseInt(contentLength) > 0 && contentType?.includes('application/json')) {
+      return await res.json();
+    } else if (method === 'DELETE' || res.status === 204) {
+      // For delete operations or no-content responses, return a simple success object
+      return { success: true } as T;
+    } else {
+      // For other response types, try to parse as text
+      const text = await res.text();
+      try {
+        // Try to parse as JSON anyway (in case content-type is wrong)
+        return JSON.parse(text) as T;
+      } catch {
+        // Return as text if not JSON
+        return text as unknown as T;
+      }
+    }
   } catch (error) {
     console.error(`API request error (${method} ${url}):`, error);
     throw error;

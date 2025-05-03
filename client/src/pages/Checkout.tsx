@@ -14,6 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, Truck, CreditCard, Copy, Plus, Minus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
+// Define OrderItem interface
+interface OrderItem {
+  juiceId: number;
+  quantity: number;
+  price: number;
+  orderId: number;
+}
+
 // Create a checkout form schema
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name is required' }),
@@ -54,21 +62,19 @@ const CheckoutPage = () => {
   });
 
   const createOrderMutation = useMutation({
-    mutationFn: async (data: CheckoutFormValues & { items: any[], total: number }) => {
-      // Format the data according to what the server expects
+    mutationFn: async (data: CheckoutFormValues & { items: OrderItem[] }) => {
       const order = {
         customerName: data.fullName,
         customerEmail: data.email,
-        total: data.total,
+        total: total,
         status: "pending",
         createdAt: new Date().toISOString()
       };
       
-      const response = await apiRequest('POST', '/api/orders', {
+      return apiRequest('POST', '/api/orders', {
         order,
         items: data.items
       });
-      return response.json();
     },
     onSuccess: (data) => {
       setOrderId(data.id);
@@ -76,10 +82,10 @@ const CheckoutPage = () => {
       setPaymentStep('confirmation');
       setProcessing(false);
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: 'Order Failed',
-        description: 'There was an issue processing your order. Please try again.',
+        description: error instanceof Error ? error.message : 'There was an issue processing your order. Please try again.',
         variant: 'destructive'
       });
       setProcessing(false);
@@ -97,17 +103,20 @@ const CheckoutPage = () => {
     // Get shipping data from form
     const shippingData = form.getValues();
     
-    // Create order with bank transfer payment method
-    createOrderMutation.mutate({
-      ...shippingData,
+    // Prepare order data including the calculated total
+    const orderData = {
+      ...shippingData, // Includes fullName, email, phone, address, notes
+      total: total, // Ensure the calculated total is included here
       items: cartItems.map(item => ({
         juiceId: item.juiceId,
         quantity: item.quantity,
         price: item.juice.price,
-        orderId: 0 // This will be replaced by the server with the actual order ID
-      })),
-      total
-    });
+        orderId: 0 // Placeholder, server replaces this
+      }))
+    };
+    
+    // Create order with bank transfer payment method
+    createOrderMutation.mutate(orderData);
   };
 
   const returnToCart = () => {

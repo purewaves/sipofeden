@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getSessionId } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { Juice, CartItem, InsertCartItem } from "@shared/schema";
+import { Juice, CartItem } from "@shared/schema";
 
 interface CartContextType {
   cartItems: (CartItem & { juice: Juice })[];
@@ -16,9 +16,15 @@ interface CartContextType {
   clearCart: () => void;
 }
 
+interface AddToCartParams {
+  juiceId: number;
+  sessionId: string;
+  quantity: number;
+}
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export const CartProvider = ({ children }: { children: ReactNode }) => {
+export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -31,53 +37,60 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Add item to cart
   const addToCartMutation = useMutation({
-    mutationFn: async (data: InsertCartItem) => {
-      const response = await apiRequest("POST", "/api/cart", data);
-      return response.json();
+    mutationFn: async (data: AddToCartParams) => {
+      return apiRequest("POST", "/api/cart", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cart/${sessionId}`] });
-    },
-    onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to add item to cart",
+        title: "Added to cart",
+        description: "Item added to cart successfully",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to add item",
+        description: error instanceof Error ? error.message : "There was an error adding the item to cart",
         variant: "destructive",
       });
     },
   });
 
   // Update cart item quantity
-  const updateCartItemMutation = useMutation({
+  const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: number; quantity: number }) => {
-      const response = await apiRequest("PUT", `/api/cart/${id}`, { quantity });
-      return response.json();
+      return apiRequest("PUT", `/api/cart/${id}`, { quantity });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cart/${sessionId}`] });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to update cart item",
+        title: "Failed to update cart",
+        description: error instanceof Error ? error.message : "There was an error updating your cart",
         variant: "destructive",
       });
     },
   });
 
   // Remove item from cart
-  const removeCartItemMutation = useMutation({
+  const removeItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("DELETE", `/api/cart/${id}`);
-      return response.json();
+      return apiRequest("DELETE", `/api/cart/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cart/${sessionId}`] });
-    },
-    onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to remove item from cart",
+        title: "Item removed",
+        description: "Item removed from cart",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to remove item",
+        description: error instanceof Error ? error.message : "There was an error removing the item from cart",
         variant: "destructive",
       });
     },
@@ -86,21 +99,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // Clear cart
   const clearCartMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/cart/clear/${sessionId}`);
-      return response.json();
+      return apiRequest("DELETE", `/api/cart/clear/${sessionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cart/${sessionId}`] });
-    },
-    onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to clear cart",
+        title: "Cart cleared",
+        description: "Your cart has been cleared",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to clear cart",
+        description: error instanceof Error ? error.message : "There was an error clearing your cart",
         variant: "destructive",
       });
     },
   });
 
+  // Handler functions that use the mutations
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
   };
@@ -121,7 +139,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     
     if (existingItem) {
       // Update quantity if item exists
-      updateItemQuantity(existingItem.id, existingItem.quantity + quantity);
+      updateQuantityMutation.mutate({ id: existingItem.id, quantity: existingItem.quantity + quantity });
     } else {
       // Add new item if it doesn't exist
       addToCartMutation.mutate({
@@ -136,11 +154,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateItemQuantity = (id: number, quantity: number) => {
-    updateCartItemMutation.mutate({ id, quantity });
+    updateQuantityMutation.mutate({ id, quantity });
   };
 
   const removeItem = (id: number) => {
-    removeCartItemMutation.mutate(id);
+    removeItemMutation.mutate(id);
   };
 
   const clearCart = () => {

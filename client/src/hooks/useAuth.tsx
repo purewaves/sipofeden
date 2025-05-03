@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
@@ -33,9 +33,9 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 // Enhanced Auth Provider with robust session management
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Load initial state from localStorage
-  const storedAdmin = localStorage.getItem('admin');
+  const storedAdmin = typeof window !== 'undefined' ? localStorage.getItem('admin') : null;
   const initialAdmin = storedAdmin ? JSON.parse(storedAdmin) : null;
   
   // State management
@@ -239,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
 // Hook to use the auth context
 export const useAuth = () => useContext(AuthContext);

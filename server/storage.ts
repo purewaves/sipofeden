@@ -17,9 +17,25 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
 import session from "express-session";
-import { pool } from "./db";
+import memorystore from 'memorystore';
+
+const MemoryStore = memorystore(session);
+
+// Define a type for the result of execute() for insert/update/delete
+// Adjust this based on the actual driver's return type if necessary
+type DrizzleExecuteResult = { 
+  rowCount?: number;
+  // Add other potential properties based on driver
+};
+
+// Helper function to check if an execute result indicates success (e.g., rows affected)
+function wasSuccessful(result: DrizzleExecuteResult | any): boolean {
+  // Neon/pg driver might return metadata directly or an array with metadata
+  const actualResult = Array.isArray(result) ? result[0] : result;
+  // Check if rowCount exists and is greater than 0
+  return actualResult && typeof actualResult.rowCount === 'number' && actualResult.rowCount > 0;
+}
 
 export interface IStorage {
   // Juice operations
@@ -40,19 +56,19 @@ export interface IStorage {
   // Subscription Plan operations
   getAllSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   getSubscriptionPlanById(id: number): Promise<SubscriptionPlan | undefined>;
-  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan | undefined>;
   updateSubscriptionPlan(id: number, plan: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
   deleteSubscriptionPlan(id: number): Promise<boolean>;
   
   // Bundle operations
   getAllBundles(): Promise<Bundle[]>;
   getBundleById(id: number): Promise<Bundle | undefined>;
-  createBundle(bundle: InsertBundle): Promise<Bundle>;
+  createBundle(bundle: InsertBundle): Promise<Bundle | undefined>;
   updateBundle(id: number, bundle: Partial<InsertBundle>): Promise<Bundle | undefined>;
   deleteBundle(id: number): Promise<boolean>;
   
   // Subscription operations (customer subscriptions)
-  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription | undefined>;
   getSubscriptions(): Promise<Subscription[]>;
   getSubscriptionById(id: number): Promise<Subscription | undefined>;
   updateSubscriptionStatus(id: number, status: string): Promise<Subscription | undefined>;
@@ -73,17 +89,17 @@ export interface IStorage {
   
   // Loyalty operations
   getLoyaltyCustomerByEmail(email: string): Promise<LoyaltyCustomer | undefined>;
-  createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer>;
-  updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer>;
+  createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer | undefined>;
+  updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer | undefined>;
   getLoyaltyCustomerRewards(customerId: number): Promise<LoyaltyReward[]>;
   getLoyaltyActivities(customerId: number, limit?: number): Promise<(LoyaltyActivity & { customer: LoyaltyCustomer })[]>;
-  createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward>;
+  createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward | undefined>;
   redeemReward(rewardId: number): Promise<LoyaltyReward | undefined>;
   getLoyaltyTiers(): Promise<{ tier: string, minimumPoints: number, benefits: string[] }[]>;
   
   // Website Settings operations
   getWebsiteSettings(): Promise<WebsiteSettings>;
-  updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings>;
+  updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings | undefined>;
   
   // Admin Notification Subscriptions
   saveNotificationSubscription(adminId: number, subscription: string, userAgent?: string, deviceName?: string): Promise<AdminNotificationSubscription>;
@@ -94,19 +110,13 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-const PostgresSessionStore = connectPg(session);
-
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    // Set up PostgreSQL session store with more robust configuration
-    this.sessionStore = new PostgresSessionStore({ 
-      pool,
-      createTableIfMissing: true,
-      tableName: 'session', // standard table name
-      schemaName: 'public', // ensure we're in the public schema
-      ttl: 86400 // 24 hours - longer session timeout
+    // Use MemoryStore instead of PostgreSQL session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
     });
     
     // Check if admin exists, if not create default admin
@@ -180,8 +190,16 @@ export class DatabaseStorage implements IStorage {
         stock: juice.stock ?? 0
       };
       
-      const result = await db.insert(juices).values(juiceWithDefaults).returning();
-      console.log(`Juice created successfully with ID: ${result[0].id}`);
+      // Use returning() to get the created juice
+      const result = await db.insert(juices)
+        .values(juiceWithDefaults)
+        .returning()
+        .execute();
+      
+      if (!result || result.length === 0) {
+        throw new Error('Failed to create juice');
+      }
+      
       return result[0];
     } catch (error) {
       console.error('Error creating juice:', error);
@@ -247,22 +265,23 @@ export class DatabaseStorage implements IStorage {
         sku: juiceUpdate.sku ?? current.sku
       };
       
+      // Use returning() to get the updated juice
       const result = await db.update(juices)
         .set(cleanedUpdate)
         .where(eq(juices.id, id))
-        .returning();
+        .returning()
+        .execute();
       
-      console.log('Juice update successful');
-      return result[0];
+      return result && result.length > 0 ? result[0] : undefined;
     } catch (error) {
-      console.error('Error updating juice in database:', error);
+      console.error('Error updating juice:', error);
       throw error;
     }
   }
   
   async deleteJuice(id: number): Promise<boolean> {
-    const result = await db.delete(juices).where(eq(juices.id, id)).returning();
-    return result.length > 0;
+    const result = await db.delete(juices).where(eq(juices.id, id)).execute();
+    return wasSuccessful(result);
   }
   
   // Cart operations
@@ -284,64 +303,88 @@ export class DatabaseStorage implements IStorage {
   }
   
   async addToCart(item: InsertCartItem): Promise<CartItem> {
-    // Check if the juice exists
-    const juice = await this.getJuiceById(item.juiceId);
-    if (!juice) throw new Error(`Juice with id ${item.juiceId} not found`);
-    
-    // Check if the item is already in the cart
-    const existingItem = await db.select()
-      .from(cartItems)
-      .where(
-        and(
-          eq(cartItems.juiceId, item.juiceId),
-          eq(cartItems.sessionId, item.sessionId)
-        )
-      );
-    
-    if (existingItem.length > 0) {
-      // Update quantity if item already exists
-      const updatedItem = await this.updateCartItem(
-        existingItem[0].id, 
-        existingItem[0].quantity + (item.quantity || 1)
-      );
-      if (!updatedItem) throw new Error(`Failed to update cart item with id ${existingItem[0].id}`);
-      return updatedItem;
+    try {
+      // Check if the juice exists
+      const juice = await this.getJuiceById(item.juiceId);
+      if (!juice) throw new Error(`Juice with id ${item.juiceId} not found`);
+      
+      // Check if the item is already in the cart
+      const existingItem = await db.select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.juiceId, item.juiceId),
+            eq(cartItems.sessionId, item.sessionId)
+          )
+        );
+      
+      if (existingItem.length > 0) {
+        // Update quantity if item already exists
+        const newQuantity = existingItem[0].quantity + (item.quantity || 1);
+        
+        // Update the cart item and return it
+        const result = await db.update(cartItems)
+          .set({ quantity: newQuantity })
+          .where(eq(cartItems.id, existingItem[0].id))
+          .returning()
+          .execute();
+        
+        if (!result || result.length === 0) {
+          throw new Error(`Failed to update cart item with id ${existingItem[0].id}`);
+        }
+        
+        return result[0];
+      }
+      
+      // Create new cart item
+      const result = await db.insert(cartItems)
+        .values({
+          ...item,
+          quantity: item.quantity || 1
+        })
+        .returning() // Use returning() to get the inserted data
+        .execute();
+      
+      if (!result || result.length === 0) {
+        throw new Error("Failed to add item to cart");
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error in addToCart:", error);
+      throw error;
     }
-    
-    // Create new cart item
-    const newItem = await db.insert(cartItems)
-      .values({
-        ...item,
-        quantity: item.quantity || 1
-      })
-      .returning();
-    
-    return newItem[0];
   }
   
   async updateCartItem(id: number, quantity: number): Promise<CartItem | undefined> {
-    const result = await db.update(cartItems)
-      .set({ quantity })
-      .where(eq(cartItems.id, id))
-      .returning();
-    
-    return result[0];
+    try {
+      const result = await db.update(cartItems)
+        .set({ quantity })
+        .where(eq(cartItems.id, id))
+        .returning()
+        .execute();
+      
+      return result && result.length > 0 ? result[0] : undefined;
+    } catch (error) {
+      console.error(`Error updating cart item ${id}:`, error);
+      return undefined;
+    }
   }
   
   async removeFromCart(id: number): Promise<boolean> {
     const result = await db.delete(cartItems)
       .where(eq(cartItems.id, id))
-      .returning();
+      .execute();
     
-    return result.length > 0;
+    return wasSuccessful(result);
   }
   
   async clearCart(sessionId: string): Promise<boolean> {
     const result = await db.delete(cartItems)
       .where(eq(cartItems.sessionId, sessionId))
-      .returning();
+      .execute();
     
-    return result.length > 0;
+    return wasSuccessful(result);
   }
   
   // Subscription Plan operations
@@ -354,23 +397,24 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
-    const result = await db.insert(subscriptionPlans).values(plan).returning();
-    return result[0];
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan | undefined> {
+    const result = await db.insert(subscriptionPlans).values(plan).returning().execute();
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async updateSubscriptionPlan(id: number, planUpdate: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
     const result = await db.update(subscriptionPlans)
       .set(planUpdate)
       .where(eq(subscriptionPlans.id, id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async deleteSubscriptionPlan(id: number): Promise<boolean> {
-    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id)).returning();
-    return result.length > 0;
+    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id)).execute();
+    return wasSuccessful(result);
   }
   
   // Bundle operations
@@ -383,32 +427,34 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async createBundle(bundle: InsertBundle): Promise<Bundle> {
-    const result = await db.insert(bundles).values(bundle).returning();
-    return result[0];
+  async createBundle(bundle: InsertBundle): Promise<Bundle | undefined> {
+    const result = await db.insert(bundles).values(bundle).returning().execute();
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async updateBundle(id: number, bundleUpdate: Partial<InsertBundle>): Promise<Bundle | undefined> {
     const result = await db.update(bundles)
       .set(bundleUpdate)
       .where(eq(bundles.id, id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async deleteBundle(id: number): Promise<boolean> {
-    const result = await db.delete(bundles).where(eq(bundles.id, id)).returning();
-    return result.length > 0;
+    const result = await db.delete(bundles).where(eq(bundles.id, id)).execute();
+    return wasSuccessful(result);
   }
   
   // Subscription operations (customer subscriptions)
-  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription | undefined> {
     const result = await db.insert(subscriptions)
       .values(subscription)
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async getSubscriptions(): Promise<Subscription[]> {
@@ -424,9 +470,10 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(subscriptions)
       .set({ status })
       .where(eq(subscriptions.id, id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   // Admin operations
@@ -447,9 +494,15 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createAdmin(admin: InsertAdmin): Promise<Admin> {
+    // Use returning() to get the created admin
     const result = await db.insert(admins)
       .values(admin)
-      .returning();
+      .returning()
+      .execute();
+    
+    if (!result || result.length === 0) {
+      throw new Error('Failed to create admin');
+    }
     
     return result[0];
   }
@@ -458,9 +511,10 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(admins)
       .set(profileData)
       .where(eq(admins.id, id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async updateAdminPassword(id: number, currentPassword: string, newPassword: string): Promise<boolean> {
@@ -475,9 +529,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(admins)
       .set({ password: newPassword }) // In a real app, hash the password
       .where(eq(admins.id, id))
-      .returning();
+      .execute();
     
-    return result.length > 0;
+    return wasSuccessful(result);
   }
   
   async updateAdminLoginStatus(id: number, isFirstLogin: boolean): Promise<boolean> {
@@ -489,40 +543,87 @@ export class DatabaseStorage implements IStorage {
         lastLogin: now
       })
       .where(eq(admins.id, id))
-      .returning();
+      .execute();
     
-    return result.length > 0;
+    return wasSuccessful(result);
   }
   
   // Order operations
   async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
-    // Create the order
-    const [newOrder] = await db.insert(orders)
-      .values({
-        ...order,
-        status: order.status || "pending"
-      })
-      .returning();
-    
-    // Create the order items and update juice stock
-    for (const item of items) {
-      await db.insert(orderItems)
-        .values({
-          ...item,
-          orderId: newOrder.id
-        })
-        .returning();
+    try {
+      console.log("Creating new order with validated data:", { 
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        itemCount: items.length,
+        total: order.total 
+      });
       
-      // Update the juice stock
-      const juice = await this.getJuiceById(item.juiceId);
-      if (juice) {
+      // Create the order using validated InsertOrder data
+      const orderResult = await db.insert(orders)
+        .values({
+          customerName: order.customerName, // Use validated customerName
+          customerEmail: order.customerEmail, // Use validated customerEmail
+          total: order.total, // Use validated total
+          status: order.status || "pending", // Use validated status or default
+          createdAt: order.createdAt || new Date().toISOString() // Use validated createdAt or default
+        })
+        .returning()
+        .execute();
+      
+      if (!orderResult || !orderResult.length) {
+        throw new Error("Failed to create order record in database");
+      }
+      
+      const newOrder = orderResult[0];
+      console.log("Order created successfully with ID:", newOrder.id);
+      
+      // Create the order items and update juice stock
+      for (const item of items) {
+        console.log(`Processing order item for juice ID: ${item.juiceId}, quantity: ${item.quantity}`);
+        
+        // Check if juice exists first
+        const juice = await this.getJuiceById(item.juiceId);
+        if (!juice) {
+          console.error(`Juice with ID ${item.juiceId} not found, cannot add to order`);
+          throw new Error(`Juice with ID ${item.juiceId} not found`);
+        }
+        
+        // Create the order item
+        await db.insert(orderItems)
+          .values({
+            orderId: newOrder.id, // Link to the created order
+            juiceId: item.juiceId,
+            quantity: item.quantity,
+            price: item.price // Use the price from the item data
+          })
+          .execute();
+        
+        // Update the juice stock
         await db.update(juices)
           .set({ stock: Math.max(0, juice.stock - item.quantity) })
-          .where(eq(juices.id, juice.id));
+          .where(eq(juices.id, juice.id))
+          .execute();
+          
+        console.log(`Updated stock for juice ID ${juice.id} to ${Math.max(0, juice.stock - item.quantity)}`);
       }
+      
+      return newOrder;
+    } catch (error: unknown) { // Catch unknown type
+      console.error("Error creating order:", error);
+      // Type guard for specific error properties
+      if (error instanceof Error) { // Check if it's a basic Error
+        // Check for code property existence more safely
+        const pgError = error as any; // Use 'any' carefully for property checking
+        if (pgError.code) {
+          console.error(`Database error code: ${pgError.code}, message: ${pgError.message}`);
+        } else {
+          console.error("Non-database error:", error.message);
+        }
+      } else {
+         console.error("An unknown error occurred:", error);
+      }
+      throw new Error("Failed to create order due to a database error.");
     }
-    
-    return newOrder;
   }
   
   async getOrders(): Promise<Order[]> {
@@ -558,9 +659,10 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(orders)
       .set({ status })
       .where(eq(orders.id, id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   // Loyalty operations
@@ -572,15 +674,16 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer> {
+  async createLoyaltyCustomer(customer: InsertLoyaltyCustomer): Promise<LoyaltyCustomer | undefined> {
     const result = await db.insert(loyaltyCustomers)
       .values(customer)
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
-  async updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer> {
+  async updateLoyaltyPoints(customerId: number, points: number, type: string, source: string, sourceId?: string): Promise<LoyaltyCustomer | undefined> {
     // Get the customer
     const customerResult = await db.select()
       .from(loyaltyCustomers)
@@ -599,13 +702,14 @@ export class DatabaseStorage implements IStorage {
     const tier = this.calculateTier(newPoints);
     
     // Update customer points and tier
-    const updatedCustomer = await db.update(loyaltyCustomers)
+    const updateResult = await db.update(loyaltyCustomers)
       .set({ 
         points: newPoints,
         tier
       })
       .where(eq(loyaltyCustomers.id, customerId))
-      .returning();
+      .returning()
+      .execute();
     
     // Record activity
     await db.insert(loyaltyActivities)
@@ -615,9 +719,10 @@ export class DatabaseStorage implements IStorage {
         type,
         source,
         sourceId
-      });
+      })
+      .execute();
     
-    return updatedCustomer[0];
+    return updateResult[0];
   }
   
   private calculateTier(points: number): string {
@@ -638,7 +743,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
-  async updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings> {
+  async updateWebsiteSettings(settings: UpdateWebsiteSettings): Promise<WebsiteSettings | undefined> {
     const currentSettings = await this.getWebsiteSettings();
     
     const result = await db.update(websiteSettings)
@@ -647,15 +752,22 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(websiteSettings.id, currentSettings.id))
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   private async createDefaultWebsiteSettingsIfNeeded(): Promise<void> {
-    const settings = await db.select().from(websiteSettings);
-    
-    if (settings.length === 0) {
+    try {
+      const settings = await db.select().from(websiteSettings);
+      
+      if (settings.length === 0) {
+        console.log("Creating default website settings...");
+        await this.createDefaultWebsiteSettings();
+      }
+    } catch (error) {
+      console.log("Creating website_settings table and default settings...");
       await this.createDefaultWebsiteSettings();
     }
   }
@@ -683,12 +795,13 @@ export class DatabaseStorage implements IStorage {
     }));
   }
   
-  async createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward> {
+  async createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward | undefined> {
     const result = await db.insert(loyaltyRewards)
       .values(reward)
-      .returning();
+      .returning()
+      .execute();
     
-    return result[0];
+    return result && result.length > 0 ? result[0] : undefined;
   }
   
   async redeemReward(rewardId: number): Promise<LoyaltyReward | undefined> {
@@ -700,7 +813,8 @@ export class DatabaseStorage implements IStorage {
         redeemedAt: now
       })
       .where(eq(loyaltyRewards.id, rewardId))
-      .returning();
+      .returning()
+      .execute();
     
     if (result.length === 0) return undefined;
     
@@ -754,8 +868,12 @@ export class DatabaseStorage implements IStorage {
         twitter: "https://twitter.com/sipofeden",
         facebook: "https://facebook.com/sipofeden"
       })
-      .returning();
+      .returning() // Ensure we get the created settings back
+      .execute();
     
+    if (!result || result.length === 0) {
+      throw new Error("Failed to create default website settings");
+    }
     return result[0];
   }
   
@@ -796,7 +914,8 @@ export class DatabaseStorage implements IStorage {
             deviceName: deviceName || existingSubscriptions[0].deviceName
           })
           .where(eq(adminNotificationSubscriptions.id, existingSubscriptions[0].id))
-          .returning();
+          .returning()
+          .execute();
         
         return updatedSubscription;
       }
@@ -811,7 +930,8 @@ export class DatabaseStorage implements IStorage {
           deviceName: deviceName || `Device ${Math.floor(Math.random() * 1000)}`,
           active: true
         })
-        .returning();
+        .returning()
+        .execute();
       
       return newSubscription;
     } catch (error) {
@@ -841,15 +961,16 @@ export class DatabaseStorage implements IStorage {
     data: UpdateAdminNotificationSubscription
   ): Promise<AdminNotificationSubscription | undefined> {
     try {
-      const [updatedSubscription] = await db.update(adminNotificationSubscriptions)
+      const result = await db.update(adminNotificationSubscriptions)
         .set({
           ...data,
           lastUsedAt: new Date()
         })
         .where(eq(adminNotificationSubscriptions.id, id))
-        .returning();
+        .returning()
+        .execute();
       
-      return updatedSubscription;
+      return result && result.length > 0 ? result[0] : undefined;
     } catch (error) {
       console.error('Error updating notification subscription:', error);
       throw error;
@@ -860,9 +981,9 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db.delete(adminNotificationSubscriptions)
         .where(eq(adminNotificationSubscriptions.id, id))
-        .returning();
+        .execute();
       
-      return result.length > 0;
+      return wasSuccessful(result);
     } catch (error) {
       console.error('Error deleting notification subscription:', error);
       throw error;
