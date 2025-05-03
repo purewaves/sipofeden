@@ -7,6 +7,7 @@ import memorystore from 'memorystore';
 import { runMigrations } from './migrations.ts';
 import fs from 'fs';
 import { registerRoutes } from './routes.ts';
+import cors from 'cors';
 
 // Load environment variables
 dotenv.config();
@@ -15,8 +16,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
+// Add CORS configuration - very important for API requests
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://www.sipofeden.ng', 'https://sipofeden.vercel.app'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Session Setup (Simplified)

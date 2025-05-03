@@ -4,14 +4,16 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
  * Helper to determine if we're running on Vercel or locally
  */
 export function getApiBaseUrl(): string {
-  // Use window.location to determine the current domain
-  const isProduction = window.location.hostname !== 'localhost';
+  // Detection is based on the URL
+  const hostname = window.location.hostname;
   
-  // If we're in production (on Vercel), use the full domain
-  // If local, use the API server port (5000)
-  return isProduction 
-    ? `${window.location.origin}` 
-    : 'http://localhost:5000';
+  // Local development - frontend is on 3000, backend on 5000
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5000';
+  }
+  
+  // Production (deployed to Vercel) - just use the same origin
+  return window.location.origin;
 }
 
 /**
@@ -173,10 +175,10 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     try {
       // Get the full URL with the base path
-      const url = getFullApiUrl(queryKey[0] as string);
-      console.log(`Making API request to: ${url}`);
+      const apiUrl = getFullApiUrl(queryKey[0] as string);
+      console.log(`Making API request to: ${apiUrl}`);
       
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl, {
         credentials: "include",
         headers: {
           'Accept': 'application/json',
@@ -202,7 +204,7 @@ export const getQueryFn: <T>(options: {
       await throwIfResNotOk(res);
       return await res.json();
     } catch (error) {
-      console.error(`Query error (${url}):`, error);
+      console.error(`Query error (${queryKey[0]}):`, error);
       throw error;
     }
   };
