@@ -20,31 +20,11 @@
   ],
   "routes": [
     {
-      "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "src": "/api/(.*)",
+      "dest": "dist/server/index.js"
     },
     {
       "handle": "filesystem"
-    },
-    {
-      "src": "/api/(.*)",
-      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      "dest": "dist/server/index.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      }
-    },
-    {
-      "src": "/api/juices/debug",
-      "methods": ["GET", "OPTIONS"],
-      "dest": "dist/server/index.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      }
     },
     {
       "src": "/(.*)",

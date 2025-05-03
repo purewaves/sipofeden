@@ -1,3 +1,5 @@
+console.log('[SERVER START] Server process starting...');
+
 import express from 'express';
 import session from 'express-session';
 import dotenv from 'dotenv';
@@ -11,6 +13,7 @@ import cors from 'cors';
 
 // Load environment variables
 dotenv.config();
+console.log('[SERVER START] Environment variables loaded.');
 
 // Basic Express App Setup
 const app = express();
