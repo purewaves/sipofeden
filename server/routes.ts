@@ -1470,6 +1470,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced health check endpoint
+  app.get('/api/health', async (req, res) => {
+    const health = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      services: {
+        database: {
+          status: 'checking',
+          connection: null,
+          tables: null
+        },
+        session: {
+          status: 'checking',
+          store: process.env.NODE_ENV === 'production' ? 'postgresql' : 'memory'
+        },
+        cloudinary: {
+          status: 'checking',
+          configured: !!process.env.CLOUDINARY_URL
+        }
+      }
+    };
+
+    try {
+      // Check database connection
+      const dbResult = await pool.query('SELECT NOW() as time');
+      health.services.database.status = 'ok';
+      health.services.database.connection = 'connected';
+      
+      // Check database tables
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      health.services.database.tables = tablesResult.rows.map(row => row.table_name);
+      
+      // Check session store
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          await pool.query('SELECT 1 FROM sessions LIMIT 1');
+          health.services.session.status = 'ok';
+        } catch (error) {
+          health.services.session.status = 'error';
+          health.services.session.error = 'Session table not accessible';
+        }
+      } else {
+        health.services.session.status = 'ok';
+      }
+      
+      // Check Cloudinary
+      if (process.env.CLOUDINARY_URL) {
+        health.services.cloudinary.status = 'ok';
+      } else {
+        health.services.cloudinary.status = 'warning';
+        health.services.cloudinary.message = 'Cloudinary not configured';
+      }
+      
+      res.json(health);
+    } catch (error) {
+      health.status = 'error';
+      health.error = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json(health);
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
   

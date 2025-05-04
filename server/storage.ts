@@ -18,9 +18,9 @@ import {
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import session from "express-session";
-import memorystore from 'memorystore';
+import connectPgSimple from 'connect-pg-simple';
 
-const MemoryStore = memorystore(session);
+const PgStore = connectPgSimple(session);
 
 // Define a type for the result of execute() for insert/update/delete
 // Adjust this based on the actual driver's return type if necessary
@@ -114,10 +114,20 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    // Use MemoryStore instead of PostgreSQL session store
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    });
+    // Use PostgreSQL session store in production, memory store in development
+    if (process.env.NODE_ENV === 'production') {
+      this.sessionStore = new PgStore({
+        pool: pool,
+        tableName: 'sessions',
+        createTableIfMissing: true,
+        ttl: 60 * 60 * 24 * 7 // 7 days
+      });
+    } else {
+      const MemoryStore = require('memorystore')(session);
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000 // prune expired entries every 24h
+      });
+    }
     
     // Check if admin exists, if not create default admin
     this.initializeAdmin();
