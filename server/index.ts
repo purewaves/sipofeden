@@ -15,15 +15,46 @@ const app = express();
 const PORT = process.env.PORT || 5999;
 
 // Configure CORS based on environment
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      'https://sipofeden.vercel.app', 
+      'https://www.sipofeden.com', 
+      'https://sipofeden.com',
+      // Add Vercel preview domains
+      ...((process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []))
+    ]
+  : [
+      'http://localhost:3998', 
+      'http://localhost:3999', 
+      'http://localhost:3000', 
+      'http://localhost:3001', 
+      'http://localhost:3002', 
+      'http://localhost:3003', 
+      'http://localhost:3004', 
+      'http://localhost:3005'
+    ];
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://sipofeden.vercel.app', 'https://www.sipofeden.com', 'https://sipofeden.com']
-    : ['http://localhost:3998', 'http://localhost:3999', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005'],
+  origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      callback(null, true);
+    } else {
+      console.warn(`[SERVER] Origin not allowed by CORS: ${origin}`);
+      // Still allow the request but log it
+      callback(null, true);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
-console.log('[SERVER] CORS ORIGINS:', corsOptions.origin);
+console.log('[SERVER] CORS ORIGINS:', allowedOrigins);
 
 app.use(cors(corsOptions));
 app.use(express.json());

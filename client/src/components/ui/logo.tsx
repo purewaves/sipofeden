@@ -1,20 +1,18 @@
 import React from "react";
+import logoPng from "../../assets/logo.jpg";
 
-// Use a relative path to the logo image
-const logoUrl = "/assets/logo.jpg";
-
-const Logo = ({ size = "medium" }: { size?: "small" | "medium" | "large" }) => {
+const Logo = ({ size = "medium" }) => {
   const sizeClasses = {
-    small: "h-8",
-    medium: "h-12",
-    large: "h-16",
+    small: "w-16 h-16",
+    medium: "w-24 h-24",
+    large: "w-32 h-32"
   };
 
   return (
     <img 
-      src={logoUrl} 
-      alt="Sip of Eden" 
-      className={`${sizeClasses[size]} rounded-full`} 
+      src={logoPng} 
+      alt="Sip of Eden Logo" 
+      className={`rounded-full ${sizeClasses[size] || sizeClasses.medium}`}
     />
   );
 };

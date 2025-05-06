@@ -14,21 +14,20 @@ const logDebug = (message: string, ...args: any[]) => {
 export function getApiBaseUrl(): string {
   // Detection is based on the URL
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
   
-  // Vercel deployment - specific domains
-  if (hostname === 'sipofeden.vercel.app' || 
-      hostname === 'www.sipofeden.com' || 
-      hostname === 'sipofeden.com') {
+  // Check if we're running on Vercel
+  const isVercel = hostname.includes('vercel.app') || 
+    hostname.includes('sipofeden.com') || 
+    (!hostname.includes('localhost') && !hostname.includes('127.0.0.1'));
+    
+  // For Vercel deployment or production domain, use the same origin
+  if (isVercel) {
     return window.location.origin;
   }
   
-  // Local development - frontend is on 3998, backend on 5999
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5999';
-  }
-  
-  // Default fallback - use same origin
-  return window.location.origin;
+  // Local development - frontend is on a port, backend on another
+  return 'http://localhost:5999';
 }
 
 /**

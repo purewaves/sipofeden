@@ -10,7 +10,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './client/src'),
       '@shared': path.resolve(__dirname, './shared'),
-      '@assets': path.resolve(__dirname, './client/public/assets'),
+      '@assets': path.resolve(__dirname, './client/src/assets'),
       '@pages': path.resolve(__dirname, './client/src/pages'),
       '@components': path.resolve(__dirname, './client/src/components'),
       '@hooks': path.resolve(__dirname, './client/src/hooks'),
@@ -19,7 +19,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3998,
+    port: 3999,
     strictPort: true,
     proxy: {
       '/api': {
