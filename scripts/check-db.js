@@ -1,46 +1,41 @@
-import dotenv from 'dotenv';
-import pg from 'pg';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
-const { Pool } = pg;
 
+// Configure WebSocket for Neon
+neonConfig.webSocketConstructor = ws;
+
+// Create a connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false // Required for Neon's SSL connection
   }
 });
 
-async function checkDb() {
+async function checkDatabase() {
   try {
-    console.log('Checking database...');
+    console.log('Checking database connection...');
+    console.log('Database URL:', process.env.DATABASE_URL);
     
-    // List all tables
-    const tablesResult = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `);
-    console.log('Tables in database:');
-    console.table(tablesResult.rows);
-    
-    // Check if orders table exists and get its columns
-    if (tablesResult.rows.some(row => row.table_name === 'orders')) {
-      const columnsResult = await pool.query(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'orders'
-      `);
-      console.log('Columns in orders table:');
-      console.table(columnsResult.rows);
-    } else {
-      console.log('Orders table not found!');
-    }
+    const client = await pool.connect();
+    console.log('Database connection successful!');
+
+    console.log('Checking juices table...');
+    const result = await client.query('SELECT COUNT(*) FROM juices');
+    console.log(`Found ${result.rows[0].count} juices in the database`);
+
+    const juices = await client.query('SELECT * FROM juices LIMIT 5');
+    console.log('Sample juices:', juices.rows);
+
+    client.release();
+    process.exit(0);
   } catch (error) {
-    console.error('Error checking database:', error);
-  } finally {
-    await pool.end();
+    console.error('Database check failed:', error);
+    process.exit(1);
   }
 }
 
-checkDb(); 
+checkDatabase(); 

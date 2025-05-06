@@ -5,12 +5,14 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// Configure Cloudinary using URL from environment variable
+if (!process.env.CLOUDINARY_URL) {
+  console.error('CLOUDINARY_URL is not set in environment variables');
+  process.exit(1);
+}
+
+// The cloudinary.config() call is not needed when using CLOUDINARY_URL
+// cloudinary will automatically pick it up from the environment
 
 // Configure memory storage for multer (files stored in memory before upload to Cloudinary)
 const storage = multer.memoryStorage();
@@ -38,20 +40,35 @@ export const upload = multer({
  * @returns Promise with the upload result
  */
 export const uploadToCloudinary = async (buffer: Buffer, folder: string = 'sipofeden') => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: 'auto' },
-      (error, result) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(result);
+  try {
+    console.log('Uploading file to Cloudinary...');
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { 
+          folder,
+          resource_type: 'auto',
+          quality: 'auto:good', // Automatically optimize quality
+          fetch_format: 'auto', // Automatically choose best format
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log('File uploaded successfully to Cloudinary');
+            resolve(result);
+          }
         }
-      }
-    );
+      );
 
-    uploadStream.end(buffer);
-  });
+      uploadStream.end(buffer);
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error uploading to Cloudinary:', error);
+    throw error;
+  }
 };
 
 /**

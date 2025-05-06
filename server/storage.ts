@@ -14,13 +14,12 @@ import {
   AdminNotificationSubscription, UpdateAdminNotificationSubscription,
   juices, cartItems, subscriptionPlans, subscriptions, bundles, admins, orders, orderItems,
   loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings, adminNotificationSubscriptions
-} from "@shared/schema";
-import { db } from "./db";
+} from "../shared/schema";
+import { db } from './db';
 import { eq, and } from "drizzle-orm";
 import session from "express-session";
-import connectPgSimple from 'connect-pg-simple';
-
-const PgStore = connectPgSimple(session);
+import memorystore from 'memorystore';
+import { sql } from 'drizzle-orm';
 
 // Define a type for the result of execute() for insert/update/delete
 // Adjust this based on the actual driver's return type if necessary
@@ -114,20 +113,11 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    // Use PostgreSQL session store in production, memory store in development
-    if (process.env.NODE_ENV === 'production') {
-      this.sessionStore = new PgStore({
-        pool: pool,
-        tableName: 'sessions',
-        createTableIfMissing: true,
-        ttl: 60 * 60 * 24 * 7 // 7 days
-      });
-    } else {
-      const MemoryStore = require('memorystore')(session);
-      this.sessionStore = new MemoryStore({
-        checkPeriod: 86400000 // prune expired entries every 24h
-      });
-    }
+    // Use memory store for both development and production for now
+    const MemoryStore = memorystore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     // Check if admin exists, if not create default admin
     this.initializeAdmin();
@@ -149,7 +139,41 @@ export class DatabaseStorage implements IStorage {
   
   // Juice operations
   async getAllJuices(): Promise<Juice[]> {
-    return db.select().from(juices);
+    try {
+      console.log('[STORAGE] Fetching all juices...');
+      // First check database connection
+      try {
+        await sql`SELECT 1`;
+        console.log('[STORAGE] Database connection verified');
+      } catch (connError) {
+        console.error('[STORAGE] Database connection error:', connError);
+        throw new Error('Database connection failed');
+      }
+      // Then check if juices table exists
+      try {
+        await sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'juices')`;
+        console.log('[STORAGE] Juices table exists');
+      } catch (tableError) {
+        console.error('[STORAGE] Error checking juices table:', tableError);
+        throw new Error('Failed to verify juices table');
+      }
+      // Finally, fetch the juices
+      const result = await db.select().from(juices).execute();
+      console.log('[STORAGE] Found', result.length, 'juices');
+      if (result.length > 0) {
+        console.log('[STORAGE] Sample juice:', {
+          id: result[0].id,
+          name: result[0].name,
+          price: result[0].price,
+          stock: result[0].stock
+        });
+      }
+      return result;
+    } catch (error) {
+      console.error('[STORAGE] Error fetching juices:', error);
+      console.error('[STORAGE] Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+      throw error;
+    }
   }
   
   async getFeaturedJuices(): Promise<Juice[]> {

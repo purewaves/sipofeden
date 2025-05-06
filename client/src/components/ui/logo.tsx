@@ -1,4 +1,7 @@
-import logoPng from "@assets/logo.jpg";
+import React from "react";
+
+// Use a relative path to the logo image
+const logoUrl = "/assets/logo.jpg";
 
 const Logo = ({ size = "medium" }: { size?: "small" | "medium" | "large" }) => {
   const sizeClasses = {
@@ -9,7 +12,7 @@ const Logo = ({ size = "medium" }: { size?: "small" | "medium" | "large" }) => {
 
   return (
     <img 
-      src={logoPng} 
+      src={logoUrl} 
       alt="Sip of Eden" 
       className={`${sizeClasses[size]} rounded-full`} 
     />

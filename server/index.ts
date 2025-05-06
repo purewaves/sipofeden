@@ -1,112 +1,67 @@
-console.log('[SERVER START] Server process starting...');
-
 import express from 'express';
-import session from 'express-session';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import memorystore from 'memorystore';
-import { runMigrations } from './migrations.ts';
-import fs from 'fs';
-import { registerRoutes } from './routes.ts';
 import cors from 'cors';
+import session from 'express-session';
+import { registerRoutes } from './routes';
+import { DatabaseStorage } from './storage';
+import * as dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
-console.log('[SERVER START] Environment variables loaded.');
 
-// Basic Express App Setup
+console.log('[SERVER] Starting server...');
+console.log('[SERVER] Environment:', process.env.NODE_ENV);
+console.log('[SERVER] Port:', process.env.PORT);
+
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+const PORT = process.env.PORT || 5999;
 
-// Add CORS configuration - very important for API requests
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://www.sipofeden.ng', 'https://sipofeden.vercel.app'],
+// Configure CORS based on environment
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://sipofeden.vercel.app', 'https://www.sipofeden.com', 'https://sipofeden.com']
+    : ['http://localhost:3998', 'http://localhost:3999', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
+console.log('[SERVER] CORS ORIGINS:', corsOptions.origin);
 
-// Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.use(express.json());
 
-// Session Setup (Simplified)
-const MemoryStore = memorystore(session);
-const sessionStore = new MemoryStore({
-  checkPeriod: 86400000 // prune expired entries every 24h
-});
+// Initialize storage
+const storage = new DatabaseStorage();
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'a-very-secure-secret-key',
+// Configure session middleware
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'local-dev-secret',
   resave: false,
   saveUninitialized: false,
-  store: sessionStore,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
-  }
-}));
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const
+  },
+  store: storage.sessionStore
+};
 
-// --- Static File Serving & Fallback (Simplified) --- 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+console.log('[SERVER] Session config:', { 
+  secure: sessionConfig.cookie.secure,
+  maxAge: sessionConfig.cookie.maxAge,
+  secret: sessionConfig.secret ? 'Set (hidden)' : 'Missing'
+});
 
-// In development, Vite handles static serving and index.html
-// In production, serve built client files
-if (process.env.NODE_ENV === 'production') {
-  const clientBuildDir = path.join(__dirname, '../../dist/client');
-  
-  // Check if build directory exists
-  try {
-    fs.accessSync(clientBuildDir);
-    app.use(express.static(clientBuildDir));
-    // Fallback for client-side routing in production
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(clientBuildDir, 'index.html'));
-    });
-  } catch (error) {
-    console.warn(`Production build directory not found at ${clientBuildDir}. Static files will not be served.`);
-    // Fallback for cases where build is missing but env is production
-     app.get('*', (req, res) => {
-       res.status(503).send('Service Unavailable: Frontend build missing.');
-     });
-  }
-} else {
-  // In development, add a placeholder root route
-  app.get('/', (req, res) => {
-    res.send('Vite Dev Server should handle this route. Check console.');
+app.use(session(sessionConfig));
+
+// Register routes
+console.log('[SERVER] Registering routes...');
+registerRoutes(app).then(server => {
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log('Environment:', process.env.NODE_ENV || 'development');
+    console.log('Session store initialized:', !!sessionConfig.store);
   });
-}
-
-// --- Initialize Application ---
-async function initializeApplication() {
-  try {
-    console.log('Attempting to run database migrations...');
-    await runMigrations(); // Run migrations first
-    console.log('Database migrations finished (or skipped if up-to-date).');
-
-    // Register all API routes
-    const server = await registerRoutes(app);
-    
-    // Start the server
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server listening at http://localhost:${PORT}`);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Development mode: Vite should be serving the frontend.');
-      }
-    });
-
-  } catch (error) {
-    console.error('Critical error during application initialization:', error);
-    // Log specific migration errors if possible
-    if (error instanceof Error && error.message.includes('relation') || error instanceof Error && error.message.includes('syntax error')) {
-      console.error('This might be a database migration issue. Check migrations.ts and your DB state.');
-    }
-    process.exit(1); // Exit if initialization fails
-  }
-}
-
-// Start the application
-initializeApplication();
+}).catch(error => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});

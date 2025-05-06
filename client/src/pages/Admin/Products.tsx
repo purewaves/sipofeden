@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import ProductForm from "@/components/admin/ProductForm";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Juice } from "@shared/schema";
-import { formatCurrency, getStockStatus, getStockStatusClass } from "@/lib/utils";
+import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../hooks/use-toast";
+import { apiRequest } from "../../lib/queryClient";
+import ProductForm from "../../components/admin/ProductForm";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Card } from "../../components/ui/card";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
+import { Juice } from "../../../shared/schema";
+import { formatCurrency, getStockStatus, getStockStatusClass } from "../../lib/utils";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import AdminPageWrapper from "@/components/layout/AdminPageWrapper";
+import { Skeleton } from "../../components/ui/skeleton";
+import AdminPageWrapper from "../../components/layout/AdminPageWrapper";
 
 const AdminProducts = () => {
   const [, navigate] = useLocation();
@@ -316,6 +316,12 @@ const AdminProducts = () => {
       {/* Product Form Dialog */}
       <Dialog open={openProductForm} onOpenChange={setOpenProductForm}>
         <DialogContent className="max-w-2xl">
+          <DialogTitle className="sr-only">
+            {editingProduct ? "Edit Product" : "Add New Product"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Form to {editingProduct ? "edit an existing" : "add a new"} product
+          </DialogDescription>
           <ProductForm 
             initialData={editingProduct} 
             onClose={() => setOpenProductForm(false)} 

@@ -10,24 +10,24 @@ export async function runMigrations() {
   
   try {
     // Check if the email column exists in the admins table
-    const rows = await pool.query(`
+    const rows = await sql`
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'admins' AND column_name = 'email'
-    `);
+    `;
     
     // If the column doesn't exist, add the new columns
     if (!rows.rows || rows.rows.length === 0) {
       console.log("Adding new columns to admins table...");
       
-      await pool.query(`
+      await sql`
         ALTER TABLE admins 
         ADD COLUMN email VARCHAR(255) DEFAULT '',
         ADD COLUMN full_name VARCHAR(255) DEFAULT '',
         ADD COLUMN phone_number VARCHAR(20) DEFAULT '',
         ADD COLUMN is_first_login BOOLEAN DEFAULT TRUE,
         ADD COLUMN last_login VARCHAR(255) DEFAULT ''
-      `);
+      `;
       
       console.log("Admin table migration completed successfully");
     } else {
@@ -58,17 +58,17 @@ export async function runMigrations() {
 async function createSubscriptionAndBundleTables() {
   try {
     // Check if subscription_plans table exists
-    const rows = await pool.query(`
+    const rows = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_name = 'subscription_plans'
-    `);
+    `;
     
     if (!rows.rows || rows.rows.length === 0) {
       console.log("Creating subscription and bundle tables...");
       
       // Create subscription_plans table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS subscription_plans (
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
@@ -78,10 +78,10 @@ async function createSubscriptionAndBundleTables() {
           features TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `);
+      `;
       
       // Create subscriptions table with updated fields
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS subscriptions (
           id SERIAL PRIMARY KEY,
           plan_id INTEGER NOT NULL,
@@ -94,10 +94,10 @@ async function createSubscriptionAndBundleTables() {
           next_delivery TIMESTAMP,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `);
+      `;
       
       // Create bundles table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS bundles (
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
@@ -107,7 +107,7 @@ async function createSubscriptionAndBundleTables() {
           image_url VARCHAR(255),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `);
+      `;
       
       console.log("Subscription and bundle tables created successfully");
     } else {
@@ -125,17 +125,17 @@ async function createSubscriptionAndBundleTables() {
 async function createWebsiteSettingsTable() {
   try {
     // Check if website_settings table exists
-    const rows = await pool.query(`
+    const rows = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_name = 'website_settings'
-    `);
+    `;
     
     if (!rows.rows || rows.rows.length === 0) {
       console.log("Creating website settings table...");
       
       // Create website_settings table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS website_settings (
           id SERIAL PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
@@ -148,16 +148,16 @@ async function createWebsiteSettingsTable() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `);
+      `;
       
       // Insert default settings
-      await pool.query(`
+      await sql`
         INSERT INTO website_settings (
           name, business_email, phone_number, address
         ) VALUES (
           'Sip of Eden', 'contact@sipofeden.com', '+234 000 0000 000', 'Lagos, Nigeria'
         );
-      `);
+      `;
       
       console.log("Website settings table created successfully");
     } else {
@@ -175,17 +175,17 @@ async function createWebsiteSettingsTable() {
 async function createLoyaltyTables() {
   try {
     // Check if loyalty_customers table exists
-    const rows = await pool.query(`
+    const rows = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_name = 'loyalty_customers'
-    `);
+    `;
     
     if (!rows.rows || rows.rows.length === 0) {
       console.log("Creating loyalty tables...");
       
       // Create loyalty_customers table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS loyalty_customers (
           id SERIAL PRIMARY KEY,
           email VARCHAR(255) NOT NULL UNIQUE,
@@ -194,10 +194,10 @@ async function createLoyaltyTables() {
           tier VARCHAR(100) NOT NULL DEFAULT 'bronze',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `);
+      `;
       
       // Create loyalty_rewards table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS loyalty_rewards (
           id SERIAL PRIMARY KEY,
           customer_id INTEGER NOT NULL,
@@ -209,10 +209,10 @@ async function createLoyaltyTables() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (customer_id) REFERENCES loyalty_customers(id)
         );
-      `);
+      `;
       
       // Create loyalty_activities table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS loyalty_activities (
           id SERIAL PRIMARY KEY,
           customer_id INTEGER NOT NULL,
@@ -223,7 +223,7 @@ async function createLoyaltyTables() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (customer_id) REFERENCES loyalty_customers(id)
         );
-      `);
+      `;
       
       console.log("Loyalty tables created successfully");
     } else {
@@ -241,17 +241,17 @@ async function createLoyaltyTables() {
 async function createNotificationSubscriptionsTable() {
   try {
     // Check if admin_notification_subscriptions table exists
-    const rows = await pool.query(`
+    const rows = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_name = 'admin_notification_subscriptions'
-    `);
+    `;
     
     if (!rows.rows || rows.rows.length === 0) {
       console.log("Creating admin notification subscriptions table...");
       
       // Create admin_notification_subscriptions table
-      await pool.query(`
+      await sql`
         CREATE TABLE IF NOT EXISTS admin_notification_subscriptions (
           id SERIAL PRIMARY KEY,
           admin_id INTEGER,
@@ -263,7 +263,7 @@ async function createNotificationSubscriptionsTable() {
           last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
         );
-      `);
+      `;
       
       console.log("Admin notification subscriptions table created successfully");
     } else {

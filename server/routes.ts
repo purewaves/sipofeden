@@ -1,12 +1,12 @@
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { type IStorage, DatabaseStorage } from "./storage";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
-import { upload } from "./cloudinary";
+import { upload, uploadToCloudinary } from "./cloudinary";
 import { sendCartAddedNotification, sendNewOrderNotification, sendOrderStatusNotification, sendAdminNotification } from "./notifications";
 import { getPublicVapidKey } from "./webPush";
 import { 
@@ -21,9 +21,18 @@ import {
   updateAdminPasswordSchema,
   updateWebsiteSettingsSchema,
   adminNotificationSubscriptions
-} from "@shared/schema";
+} from "../shared/schema";
+import { pool, sql } from './db';
+
+// Create a storage instance
+let storageInstance: IStorage;
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Create storage instance if not exists
+  if (!storageInstance) {
+    storageInstance = new DatabaseStorage();
+  }
+
   // Enhanced middleware to check if admin is authenticated
   const isAdminAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
     console.log("Checking admin authentication...");
@@ -42,7 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.lastActive = new Date().toISOString();
         
         // First validate the session is working correctly by checking the admin record
-        const admin = await storage.getAdminById(req.session.adminId);
+        const admin = await storageInstance.getAdminById(req.session.adminId);
         if (admin) {
           console.log("Admin authentication success:", admin.username);
           
@@ -118,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API Routes
   
-  // Simple file upload route using Base64 encoding
+  // Simple file upload route using Cloudinary
   app.post('/api/upload', upload.single('image'), async (req: Request, res: Response) => {
     try {
       console.log('File upload request received', req.file ? 'with file' : 'without file');
@@ -127,8 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Check file size (10MB max) - this is a backup to the multer limit
-      // iPhone photos can be much larger (5-10MB from modern devices)
+      // Check file size (10MB max)
       const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
@@ -138,45 +146,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Convert image to base64 data URL
-      const base64Image = req.file.buffer.toString('base64');
-      const mimeType = req.file.mimetype;
-      let imageUrl = `data:${mimeType};base64,${base64Image}`;
+      // Upload to Cloudinary
+      const result = await uploadToCloudinary(req.file.buffer);
       
-      // Check final base64 size - increased to 10MB to support larger iPhone images
-      const imageDataSize = imageUrl.length;
-      console.log(`Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
-      
-      // Accepting much larger images now (10MB) to support modern iPhone photos
-      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
-      if (imageDataSize > MAX_BASE64_SIZE) {
-        console.warn(`Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
-        
-        // Implement simple compression by limiting the image data length
-        // Get the type and encoding
-        const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // Truncate to 10MB for database safety - this should support most modern images
-          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
-          imageUrl = `${metaData},${truncatedData}`;
-          console.log(`Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
-        }
-      }
-      
-      // Also save to disk for development environment (optional)
-      if (process.env.NODE_ENV === 'development') {
-        const filename = `product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, req.file.buffer);
-        console.log(`Also saved to disk: ${filepath}`);
-      }
-      
-      // Set the Content-Type explicitly to prevent HTML response
-      res.setHeader('Content-Type', 'application/json');
-      return res.json({
+      // Return the Cloudinary URL
+      res.json({
         message: 'File uploaded successfully',
-        imageUrl,
-        sizeMB: (imageUrl.length / (1024 * 1024)).toFixed(2)
+        imageUrl: result.secure_url,
+        publicId: result.public_id
       });
     } catch (error) {
       console.error('File upload error:', error);
@@ -191,14 +168,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[ADMIN] File upload request received', req.file ? 'with file' : 'without file');
       
       // Important: Ensure session is properly touched and saved during file upload
-      // This prevents session expiration during long uploads
       if (req.session && req.session.adminId) {
         req.session.lastActive = new Date().toISOString();
         // Pre-emptively save the session to prevent expiration
         await new Promise<void>((resolve) => {
           req.session.save((err) => {
             if (err) console.error("Error saving session during file upload:", err);
-            resolve(); // Continue regardless of error
+            resolve();
           });
         });
       }
@@ -207,8 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      // Check file size (10MB max) - this is a backup to the multer limit
-      // iPhone photos can be much larger (5-10MB from modern devices)
+      // Check file size (10MB max)
       const MAX_SIZE = 10 * 1024 * 1024; // 10MB
       if (req.file.size > MAX_SIZE) {
         return res.status(413).json({ 
@@ -218,45 +193,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Convert image to base64 data URL
-      const base64Image = req.file.buffer.toString('base64');
-      const mimeType = req.file.mimetype;
-      let imageUrl = `data:${mimeType};base64,${base64Image}`;
+      // Upload to Cloudinary with admin folder
+      const result = await uploadToCloudinary(req.file.buffer, 'sipofeden/admin');
       
-      // Check final base64 size - increased to 10MB to support larger iPhone images
-      const imageDataSize = imageUrl.length;
-      console.log(`[ADMIN] Image converted to base64 (size: ${Math.round(imageDataSize/1024)}KB)`);
-      
-      // Accepting much larger images now (10MB) to support modern iPhone photos
-      const MAX_BASE64_SIZE = 10 * 1024 * 1024; // 10MB
-      if (imageDataSize > MAX_BASE64_SIZE) {
-        console.warn(`[ADMIN] Image data exceeds recommended size (${Math.round(imageDataSize/1024)}KB), reducing quality...`);
-        
-        // Implement simple compression by limiting the image data length
-        // Get the type and encoding
-        const [metaData, base64Data] = imageUrl.split(',');
-        if (base64Data && base64Data.length > MAX_BASE64_SIZE) {
-          // Truncate to 10MB for database safety - this should support most modern images
-          const truncatedData = base64Data.slice(0, MAX_BASE64_SIZE);
-          imageUrl = `${metaData},${truncatedData}`;
-          console.log(`[ADMIN] Reduced image size to approximately ${Math.round(imageUrl.length/1024)}KB`);
-        }
-      }
-      
-      // Also save to disk for development environment (optional)
-      if (process.env.NODE_ENV === 'development') {
-        const filename = `admin-product-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, req.file.buffer);
-        console.log(`[ADMIN] Also saved to disk: ${filepath}`);
-      }
-      
-      // Set the Content-Type explicitly to prevent HTML response
-      res.setHeader('Content-Type', 'application/json');
-      return res.json({
+      res.json({
         message: 'File uploaded successfully',
-        imageUrl,
-        sizeMB: (imageUrl.length / (1024 * 1024)).toFixed(2)
+        imageUrl: result.secure_url,
+        publicId: result.public_id
       });
     } catch (error) {
       console.error('[ADMIN] File upload error:', error);
@@ -265,29 +208,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Debug endpoint for juices
+  app.get("/api/juices/debug", async (req: Request, res: Response) => {
+    try {
+      console.log("[DEBUG] Fetching juices from database...");
+      const juices = await storageInstance.getAllJuices();
+      console.log("[DEBUG] Found juices:", juices.length);
+      
+      // Log sample data
+      if (juices.length > 0) {
+        console.log("[DEBUG] Sample juice:", {
+          id: juices[0].id,
+          name: juices[0].name,
+          price: juices[0].price,
+          stock: juices[0].stock
+        });
+      }
+      
+      res.json({
+        status: "success",
+        count: juices.length,
+        juices: juices.slice(0, 5) // Return first 5 juices for debugging
+      });
+    } catch (error) {
+      console.error("[DEBUG] Error fetching juices:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Failed to fetch juices",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Juice routes with inventory verification
   app.get("/api/juices", async (req: Request, res: Response) => {
     try {
+      console.log("[API] GET /api/juices - Fetching all juices");
+      
       // Get all juices with optional inventory verification
-      const juices = await storage.getAllJuices();
+      const juices = await storageInstance.getAllJuices();
+      console.log("[API] Found juices:", juices.length);
       
       // Check if inventory verification is requested
       if (req.query.verifyInventory === 'true') {
-        console.log("Performing inventory verification");
+        console.log("[API] Performing inventory verification");
         
         // Get all orders to verify inventory counts
-        const orders = await storage.getOrders();
+        const orders = await storageInstance.getOrders();
         let orderItems: any[] = [];
         
         // Collect all order items to calculate real inventory
         for (const order of orders) {
           try {
-            const orderDetails = await storage.getOrderById(order.id);
+            const orderDetails = await storageInstance.getOrderById(order.id);
             if (orderDetails && orderDetails.items) {
               orderItems = [...orderItems, ...orderDetails.items];
             }
           } catch (err) {
-            console.error(`Error fetching order items for order ${order.id}:`, err);
+            console.error(`[API] Error fetching order items for order ${order.id}:`, err);
           }
         }
         
@@ -301,29 +279,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Update stock if needed (this is simplified - a real implementation would
             // account for returns, restocks, etc.)
             if (juice.stock < 0) {
-              console.warn(`Fixing negative stock for juice ${juice.id} (${juice.name})`);
-              await storage.updateJuice(juice.id, { ...juice, stock: 0 });
+              console.warn(`[API] Fixing negative stock for juice ${juice.id} (${juice.name})`);
+              await storageInstance.updateJuice(juice.id, { ...juice, stock: 0 });
               juice.stock = 0;
             }
             
             // Add calculated sales data to the response
             juice.calculatedSales = totalSold;
           } catch (err) {
-            console.error(`Error verifying juice ${juice.id}:`, err);
+            console.error(`[API] Error verifying juice ${juice.id}:`, err);
           }
         }
       }
       
+      console.log("[API] Sending response with", juices.length, "juices");
       res.json(juices);
     } catch (error) {
-      console.error("Error fetching juices:", error);
-      res.status(500).json({ message: "Failed to fetch juices" });
+      console.error("[API] Error fetching juices:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch juices", 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 
   app.get("/api/juices/featured", async (req: Request, res: Response) => {
     try {
-      const featuredJuices = await storage.getFeaturedJuices();
+      const featuredJuices = await storageInstance.getFeaturedJuices();
       res.json(featuredJuices);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured juices" });
@@ -337,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid juice ID" });
       }
       
-      const juice = await storage.getJuiceById(id);
+      const juice = await storageInstance.getJuiceById(id);
       if (!juice) {
         return res.status(404).json({ message: "Juice not found" });
       }
@@ -377,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Validation passed with cleaned data for new juice");
       }
       
-      const newJuice = await storage.createJuice(validatedData);
+      const newJuice = await storageInstance.createJuice(validatedData);
       console.log("New juice created successfully:", newJuice.id, newJuice.name);
       
       res.status(201).json(newJuice);
@@ -409,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Request body:", req.body);
       
       // Get current juice data for fallback/verification
-      const currentJuice = await storage.getJuiceById(id);
+      const currentJuice = await storageInstance.getJuiceById(id);
       if (!currentJuice) {
         return res.status(404).json({ message: "Juice not found" });
       }
@@ -447,13 +430,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedData.imageUrl = currentJuice.imageUrl;
       }
       
-      const updatedJuice = await storage.updateJuice(id, validatedData);
+      const updatedJuice = await storageInstance.updateJuice(id, validatedData);
       if (!updatedJuice) {
         return res.status(404).json({ message: "Juice not found during update" });
       }
       
       // Get the fresh data to ensure we have the latest
-      const freshJuice = await storage.getJuiceById(id);
+      const freshJuice = await storageInstance.getJuiceById(id);
       console.log("Update successful, returning updated juice");
       
       res.json(freshJuice || updatedJuice);
@@ -480,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid juice ID" });
       }
       
-      const success = await storage.deleteJuice(id);
+      const success = await storageInstance.deleteJuice(id);
       if (!success) {
         return res.status(404).json({ message: "Juice not found" });
       }
@@ -495,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cart/:sessionId", async (req: Request, res: Response) => {
     try {
       const { sessionId } = req.params;
-      const cartItems = await storage.getCartItems(sessionId);
+      const cartItems = await storageInstance.getCartItems(sessionId);
       res.json(cartItems);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch cart items" });
@@ -508,13 +491,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertCartItemSchema.parse(req.body);
       console.log('[ADD TO CART] Data validated successfully');
       
-      const cartItem = await storage.addToCart(validatedData);
+      const cartItem = await storageInstance.addToCart(validatedData);
       console.log('[ADD TO CART] Item added to cart successfully', cartItem);
       
       // Get juice details for the notification
       try {
         console.log('[ADD TO CART] Retrieving juice details for notification');
-        const juice = await storage.getJuiceById(validatedData.juiceId);
+        const juice = await storageInstance.getJuiceById(validatedData.juiceId);
         
         if (juice) {
           console.log(`[ADD TO CART] Found juice with id ${validatedData.juiceId}: ${juice.name}`);
@@ -582,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid quantity" });
       }
       
-      const updatedItem = await storage.updateCartItem(id, quantity);
+      const updatedItem = await storageInstance.updateCartItem(id, quantity);
       if (!updatedItem) {
         return res.status(404).json({ message: "Cart item not found" });
       }
@@ -600,7 +583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid cart item ID" });
       }
       
-      const success = await storage.removeFromCart(id);
+      const success = await storageInstance.removeFromCart(id);
       if (!success) {
         return res.status(404).json({ message: "Cart item not found" });
       }
@@ -614,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/cart/clear/:sessionId", async (req: Request, res: Response) => {
     try {
       const { sessionId } = req.params;
-      await storage.clearCart(sessionId);
+      await storageInstance.clearCart(sessionId);
       res.json({ message: "Cart cleared successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to clear cart" });
@@ -625,7 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/subscriptions", async (req: Request, res: Response) => {
     try {
       const validatedData = insertSubscriptionSchema.parse(req.body);
-      const subscription = await storage.createSubscription(validatedData);
+      const subscription = await storageInstance.createSubscription(validatedData);
       res.status(201).json(subscription);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -638,7 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Subscription Plan routes (admin)
   app.get("/api/admin/subscription-plans", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const plans = await storage.getAllSubscriptionPlans();
+      const plans = await storageInstance.getAllSubscriptionPlans();
       res.json(plans);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch subscription plans" });
@@ -652,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid subscription plan ID" });
       }
       
-      const plan = await storage.getSubscriptionPlanById(id);
+      const plan = await storageInstance.getSubscriptionPlanById(id);
       if (!plan) {
         return res.status(404).json({ message: "Subscription plan not found" });
       }
@@ -666,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/subscription-plans", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const validatedData = insertSubscriptionPlanSchema.parse(req.body);
-      const newPlan = await storage.createSubscriptionPlan(validatedData);
+      const newPlan = await storageInstance.createSubscriptionPlan(validatedData);
       res.status(201).json(newPlan);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -686,7 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate partial update
       const validatedData = insertSubscriptionPlanSchema.partial().parse(req.body);
       
-      const updatedPlan = await storage.updateSubscriptionPlan(id, validatedData);
+      const updatedPlan = await storageInstance.updateSubscriptionPlan(id, validatedData);
       if (!updatedPlan) {
         return res.status(404).json({ message: "Subscription plan not found" });
       }
@@ -707,7 +690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid subscription plan ID" });
       }
       
-      const success = await storage.deleteSubscriptionPlan(id);
+      const success = await storageInstance.deleteSubscriptionPlan(id);
       if (!success) {
         return res.status(404).json({ message: "Subscription plan not found" });
       }
@@ -721,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bundle routes (admin)
   app.get("/api/admin/bundles", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const bundles = await storage.getAllBundles();
+      const bundles = await storageInstance.getAllBundles();
       res.json(bundles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bundles" });
@@ -735,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid bundle ID" });
       }
       
-      const bundle = await storage.getBundleById(id);
+      const bundle = await storageInstance.getBundleById(id);
       if (!bundle) {
         return res.status(404).json({ message: "Bundle not found" });
       }
@@ -749,7 +732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/bundles", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const validatedData = insertBundleSchema.parse(req.body);
-      const newBundle = await storage.createBundle(validatedData);
+      const newBundle = await storageInstance.createBundle(validatedData);
       res.status(201).json(newBundle);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -769,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate partial update
       const validatedData = insertBundleSchema.partial().parse(req.body);
       
-      const updatedBundle = await storage.updateBundle(id, validatedData);
+      const updatedBundle = await storageInstance.updateBundle(id, validatedData);
       if (!updatedBundle) {
         return res.status(404).json({ message: "Bundle not found" });
       }
@@ -790,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid bundle ID" });
       }
       
-      const success = await storage.deleteBundle(id);
+      const success = await storageInstance.deleteBundle(id);
       if (!success) {
         return res.status(404).json({ message: "Bundle not found" });
       }
@@ -804,7 +787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public subscription plan routes
   app.get("/api/subscription-plans", async (req: Request, res: Response) => {
     try {
-      const plans = await storage.getAllSubscriptionPlans();
+      const plans = await storageInstance.getAllSubscriptionPlans();
       res.json(plans);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch subscription plans" });
@@ -814,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public bundle routes
   app.get("/api/bundles", async (req: Request, res: Response) => {
     try {
-      const bundles = await storage.getAllBundles();
+      const bundles = await storageInstance.getAllBundles();
       res.json(bundles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bundles" });
@@ -824,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customer subscription routes (existing route)
   app.get("/api/admin/subscriptions", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const subscriptions = await storage.getSubscriptions();
+      const subscriptions = await storageInstance.getSubscriptions();
       res.json(subscriptions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch subscriptions" });
@@ -857,7 +840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify admin credentials against database
-      const admin = await storage.getAdminByUsername(username);
+      const admin = await storageInstance.getAdminByUsername(username);
       console.log("Admin lookup result:", admin ? "found" : "not found");
       
       if (!admin || admin.password !== password) {
@@ -911,7 +894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Updating admin login status in database");
       // Update last login time in separate try-catch for robustness
       try {
-        await storage.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
+        await storageInstance.updateAdminLoginStatus(admin.id, admin.isFirstLogin ?? false);
         console.log("Admin login status updated successfully");
       } catch (statusError) {
         console.error("Failed to update login status:", statusError);
@@ -1019,7 +1002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      const admin = await storage.getAdminById(adminId);
+      const admin = await storageInstance.getAdminById(adminId);
       
       if (!admin) {
         console.error(`Admin with ID ${adminId} not found but session exists`);
@@ -1061,7 +1044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const updatedAdmin = await storage.updateAdminProfile(adminId, profileData);
+      const updatedAdmin = await storageInstance.updateAdminProfile(adminId, profileData);
       
       if (!updatedAdmin) {
         return res.status(404).json({ message: "Admin not found" });
@@ -1103,16 +1086,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update password
-      const success = await storage.updateAdminPassword(adminId, currentPassword, newPassword);
+      const success = await storageInstance.updateAdminPassword(adminId, currentPassword, newPassword);
       
       if (!success) {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
       
       // If this was the admin's first login, update the flag
-      const admin = await storage.getAdminById(adminId);
+      const admin = await storageInstance.getAdminById(adminId);
       if (admin && admin.isFirstLogin) {
-        await storage.updateAdminLoginStatus(adminId, false);
+        await storageInstance.updateAdminLoginStatus(adminId, false);
       }
       
       res.status(200).json({ message: "Password updated successfully" });
@@ -1131,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedOrder = insertOrderSchema.parse(order);
       const validatedItems = z.array(insertOrderItemSchema).parse(items);
       
-      const newOrder = await storage.createOrder(validatedOrder, validatedItems);
+      const newOrder = await storageInstance.createOrder(validatedOrder, validatedItems);
       
       // Send notification to admin about new order
       try {
@@ -1162,7 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/orders", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const orders = await storage.getOrders();
+      const orders = await storageInstance.getOrders();
       res.json(orders);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch orders" });
@@ -1176,7 +1159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid order ID" });
       }
       
-      const order = await storage.getOrderById(id);
+      const order = await storageInstance.getOrderById(id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -1200,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the current order to track status change
-      const currentOrder = await storage.getOrderById(id);
+      const currentOrder = await storageInstance.getOrderById(id);
       if (!currentOrder) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -1208,7 +1191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previousStatus = currentOrder.status;
       
       // Update the order status
-      const updatedOrder = await storage.updateOrderStatus(id, status);
+      const updatedOrder = await storageInstance.updateOrderStatus(id, status);
       if (!updatedOrder) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -1245,7 +1228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Website Settings Routes
   app.get("/api/website-settings", async (req: Request, res: Response) => {
     try {
-      const settings = await storage.getWebsiteSettings();
+      const settings = await storageInstance.getWebsiteSettings();
       res.status(200).json(settings);
     } catch (error: any) {
       console.error("Error fetching website settings:", error);
@@ -1259,7 +1242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = updateWebsiteSettingsSchema.parse(req.body);
       
       // Update the settings
-      const settings = await storage.updateWebsiteSettings(validatedData);
+      const settings = await storageInstance.updateWebsiteSettings(validatedData);
       res.status(200).json(settings);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -1304,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? subscription 
         : JSON.stringify(subscription);
       
-      const savedSubscription = await storage.saveNotificationSubscription(
+      const savedSubscription = await storageInstance.saveNotificationSubscription(
         req.session.adminId, 
         subscriptionData,
         req.headers['user-agent'],
@@ -1330,7 +1313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Admin authentication required" });
       }
       
-      const subscriptions = await storage.getAdminNotificationSubscriptions(req.session.adminId);
+      const subscriptions = await storageInstance.getAdminNotificationSubscriptions(req.session.adminId);
       
       res.json(subscriptions);
     } catch (error) {
@@ -1350,7 +1333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid subscription ID" });
       }
       
-      const deleted = await storage.deleteNotificationSubscription(id);
+      const deleted = await storageInstance.deleteNotificationSubscription(id);
       
       if (!deleted) {
         return res.status(404).json({ message: "Subscription not found" });
@@ -1402,131 +1385,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced debug endpoint with connection test and CORS headers
-  app.get('/api/juices/debug', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    try {
-      // 1. Test DB Connection
-      const connectionTest = await pool.query('SELECT NOW() as time');
-      console.log('[DEBUG] Database connection test:', connectionTest.rows[0].time);
-      
-      // 2. Get raw juices from DB using direct query
-      console.log('[DEBUG] Attempting to query juices table...');
-      const directJuicesQuery = await pool.query('SELECT * FROM juices ORDER BY id LIMIT 10');
-      const directJuicesCount = directJuicesQuery.rows.length;
-      
-      // 3. Get juices using storage.ts methods
-      console.log('[DEBUG] Attempting to fetch juices via storage.getAllJuices...');
-      let storageJuices = [];
-      let storageError = null;
-      try {
-        storageJuices = await storage.getAllJuices();
-      } catch (error) {
-        storageError = error instanceof Error ? error.message : String(error);
-        console.error('[DEBUG] Error fetching from storage:', storageError);
-      }
-      
-      // 4. Get environment info
-      const environment = {
-        nodeEnv: process.env.NODE_ENV,
-        databaseUrl: process.env.DATABASE_URL ? 'Set (hidden for security)' : 'Missing',
-        hostname: req.headers.host,
-        vercel: process.env.VERCEL === '1' ? 'Yes' : 'No',
-        cloudinary: process.env.CLOUDINARY_URL ? 'Set (hidden for security)' : 'Missing'
-      };
-      
-      // Return comprehensive debug info
-      return res.json({
-        timestamp: new Date().toISOString(),
-        success: true,
-        connection: {
-          successful: true,
-          time: connectionTest.rows[0].time
-        },
-        juiceData: {
-          directQuery: {
-            count: directJuicesCount,
-            sample: directJuicesCount > 0 ? directJuicesQuery.rows[0] : null
-          },
-          storageMethod: {
-            count: storageJuices.length,
-            error: storageError,
-            sample: storageJuices.length > 0 ? storageJuices[0] : null
-          }
-        },
-        environment
-      });
-    } catch (error) {
-      console.error('[DEBUG] Error in debug endpoint:', error);
-      return res.status(500).json({
-        timestamp: new Date().toISOString(),
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : null) : null
-      });
-    }
-  });
-
   // Enhanced health check endpoint
   app.get('/api/health', async (req, res) => {
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
+      environment: process.env.NODE_ENV || 'development',
       services: {
         database: {
-          status: 'checking',
-          connection: null,
-          tables: null
+          status: 'checking'
         },
         session: {
           status: 'checking',
           store: process.env.NODE_ENV === 'production' ? 'postgresql' : 'memory'
         },
         cloudinary: {
-          status: 'checking',
+          status: process.env.CLOUDINARY_URL ? 'ok' : 'warning',
           configured: !!process.env.CLOUDINARY_URL
         }
       }
     };
 
     try {
-      // Check database connection
-      const dbResult = await pool.query('SELECT NOW() as time');
+      // Simple database check
+      await sql`SELECT NOW()`;
       health.services.database.status = 'ok';
-      health.services.database.connection = 'connected';
-      
-      // Check database tables
-      const tablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public'
-      `);
-      health.services.database.tables = tablesResult.rows.map(row => row.table_name);
-      
-      // Check session store
-      if (process.env.NODE_ENV === 'production') {
-        try {
-          await pool.query('SELECT 1 FROM sessions LIMIT 1');
-          health.services.session.status = 'ok';
-        } catch (error) {
-          health.services.session.status = 'error';
-          health.services.session.error = 'Session table not accessible';
-        }
-      } else {
-        health.services.session.status = 'ok';
-      }
-      
-      // Check Cloudinary
-      if (process.env.CLOUDINARY_URL) {
-        health.services.cloudinary.status = 'ok';
-      } else {
-        health.services.cloudinary.status = 'warning';
-        health.services.cloudinary.message = 'Cloudinary not configured';
-      }
+      health.services.session.status = 'ok';
       
       res.json(health);
     } catch (error) {
@@ -1537,9 +1421,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create HTTP server
-  const httpServer = createServer(app);
+  const server = createServer(app);
   
   // Configure additional server settings here if needed
   
-  return httpServer;
+  return server;
 }

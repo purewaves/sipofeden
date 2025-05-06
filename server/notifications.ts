@@ -1,7 +1,7 @@
 import { webPush } from './webPush';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
-import { adminNotificationSubscriptions, Order, CartItem, Juice } from '@shared/schema';
+import { adminNotificationSubscriptions, Order, CartItem, Juice } from '../shared/schema';
 
 /**
  * Send a notification to all subscribed admins

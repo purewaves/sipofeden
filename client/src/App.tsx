@@ -2,33 +2,34 @@ import React from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { Toaster } from "@/components/ui/toaster";
+// Fix import path for Toaster
+import { Toaster } from "./components/ui/toaster";
 
 // Pages
-import Home from "@/pages/Home";
-import Shop from "@/pages/Shop";
-import ProductDetail from "@/pages/ProductDetail";
-import Subscribe from "@/pages/Subscribe";
-import Checkout from "@/pages/Checkout";
-import JuiceChat from "@/pages/JuiceChat";
-import NotFound from "@/pages/not-found";
+import Home from "./pages/Home";
+import Shop from "./pages/Shop";
+import ProductDetail from "./pages/ProductDetail";
+import Subscribe from "./pages/Subscribe";
+import Checkout from "./pages/Checkout";
+import JuiceChat from "./pages/JuiceChat";
+import NotFound from "./pages/not-found";
 
 // Admin Pages
-import AdminLogin from "@/pages/Admin/Login";
-import AdminDashboard from "@/pages/Admin/Dashboard";
-import AdminProducts from "@/pages/Admin/Products";
-import AdminOrders from "@/pages/Admin/Orders";
-import AdminSubscriptions from "@/pages/Admin/Subscriptions";
-import AdminProfile from "@/pages/Admin/Profile";
+import AdminLogin from "./pages/Admin/Login";
+import AdminDashboard from "./pages/Admin/Dashboard";
+import AdminProducts from "./pages/Admin/Products";
+import AdminOrders from "./pages/Admin/Orders";
+import AdminSubscriptions from "./pages/Admin/Subscriptions";
+import AdminProfile from "./pages/Admin/Profile";
 
 // Layout Components
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import CartSidebar from "@/components/CartSidebar";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import CartSidebar from "./components/CartSidebar";
 
 // Context Providers
-import { CartProvider } from "@/hooks/useCart";
-import { AuthProvider } from "@/hooks/useAuth";
+import { CartProvider } from "./hooks/useCart";
+import { AuthProvider } from "./hooks/useAuth";
 
 function Router() {
   const [location] = useLocation();

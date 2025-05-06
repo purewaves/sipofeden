@@ -15,12 +15,19 @@ export function getApiBaseUrl(): string {
   // Detection is based on the URL
   const hostname = window.location.hostname;
   
-  // Local development - frontend is on 3000, backend on 5000
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
+  // Vercel deployment - specific domains
+  if (hostname === 'sipofeden.vercel.app' || 
+      hostname === 'www.sipofeden.com' || 
+      hostname === 'sipofeden.com') {
+    return window.location.origin;
   }
   
-  // Production (deployed to Vercel) - just use the same origin
+  // Local development - frontend is on 3998, backend on 5999
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5999';
+  }
+  
+  // Default fallback - use same origin
   return window.location.origin;
 }
 
@@ -193,11 +200,11 @@ type UnauthorizedBehavior = "returnNull" | "throw" | "redirect";
 /**
  * Enhanced query function with improved session management
  */
-export const getQueryFn: <T>(options: {
+export const getQueryFn: (options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
+}) => QueryFunction<unknown> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+  async <T>({ queryKey }: { queryKey: readonly unknown[] }): Promise<T | null> => {
     try {
       // Get the full URL with the base path
       const apiUrl = getFullApiUrl(queryKey[0] as string);
@@ -223,6 +230,7 @@ export const getQueryFn: <T>(options: {
           return null;
         } else {
           await handleResponseError(res);
+          return null; // Ensure all paths return a value
         }
       }
 
@@ -235,7 +243,7 @@ export const getQueryFn: <T>(options: {
       
       // Handle no content responses properly
       if (res.status === 204) {
-        return null as unknown as T;
+        return null as T; // Use T here
       }
       
       // Parse JSON response

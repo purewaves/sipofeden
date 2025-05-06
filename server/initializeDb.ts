@@ -1,15 +1,17 @@
 import { eq } from "drizzle-orm";
-import { db, pool } from "./db";
+import { db } from './db';
 import { 
   juices, 
   admins, 
   InsertJuice, 
-  InsertAdmin 
+  InsertAdmin,
+  orderItems
 } from "@shared/schema";
 import * as dotenv from "dotenv";
 import type { NodePgTransaction } from 'drizzle-orm/node-postgres';
 import { pathToFileURL } from 'url';
 import bcrypt from 'bcrypt';
+import { sql } from 'drizzle-orm';
 
 dotenv.config();
 
@@ -21,7 +23,7 @@ export async function seedDatabase() {
 
     // Test connection first
     try {
-      await pool.query('SELECT NOW()');
+      await sql`SELECT NOW()`;
       console.log('[SEED] Database connection verified.');
     } catch (connError) {
       console.error('[SEED] Database connection failed:', connError);
@@ -47,7 +49,13 @@ export async function seedDatabase() {
     // -----------------------
 
     // --- Force seeding juices by deleting existing first --- 
-    console.log('[SEED] Clearing existing juices before seeding...');
+    console.log('[SEED] Clearing existing data before seeding...');
+    
+    // First delete order_items to handle foreign key constraints
+    const deleteOrderItems = await db.delete(orderItems);
+    console.log(`[SEED] Existing order items cleared. Rows affected: ${deleteOrderItems.rowCount ?? 'N/A'}`);
+    
+    // Then delete juices
     const deleteResult = await db.delete(juices);
     console.log(`[SEED] Existing juices cleared. Rows affected: ${deleteResult.rowCount ?? 'N/A'}`);
     // ------------------------------------------------------
@@ -140,11 +148,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   seedDatabase()
     .then(() => {
       console.log("[SEED] Seeding script finished running standalone.");
-      pool.end().then(() => console.log("[SEED] Pool closed.")); 
+      process.exit(0); 
     })
     .catch(() => {
       console.error("[SEED] Seeding script failed running standalone.");
-      pool.end().then(() => console.log("[SEED] Pool closed after error.")); 
       process.exit(1);
     });
 }

@@ -3,16 +3,28 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Juice } from "@shared/schema";
+import { apiRequest } from "../../lib/queryClient";
+import { useToast } from "../../hooks/use-toast";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+import { Switch } from "../../components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 import { Loader2, Upload, Image } from "lucide-react";
+
+// Define Juice type directly if not importing from schema
+type Juice = {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: string;
+  stock: number;
+  featured: boolean;
+  sku: string;
+};
 
 // Create a product schema based on the insertJuiceSchema
 const productSchema = z.object({
@@ -66,21 +78,8 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       try {
         const response = await apiRequest("POST", "/api/admin/juices", data);
         
-        if (!response.ok) {
-          // Try to get error details
-          let errorText = await response.text();
-          try {
-            // Attempt to parse as JSON
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.message || `Creation failed with status: ${response.status}`);
-          } catch (parseError) {
-            // If not JSON, use the raw text
-            const errorMsg = errorText || response.statusText || '';
-            throw new Error(`Creation failed: ${errorMsg}${response.status ? ` (status ${response.status})` : ''}`);
-          }
-        }
-        
-        return await response.json();
+        // apiRequest already returns the parsed JSON response
+        return response;
       } catch (err) {
         console.error("Create API error:", err);
         throw err;
@@ -145,21 +144,8 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
         
         const response = await apiRequest("PUT", `/api/admin/juices/${initialData?.id}`, requestBody);
         
-        if (!response.ok) {
-          // Try to get error details
-          let errorText = await response.text();
-          try {
-            // Attempt to parse as JSON
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.message || `Update failed with status: ${response.status}`);
-          } catch (parseError) {
-            // If not JSON, use the raw text
-            const errorMsg = errorText || response.statusText || '';
-            throw new Error(`Update failed: ${errorMsg}${response.status ? ` (status ${response.status})` : ''}`);
-          }
-        }
-        
-        return await response.json();
+        // apiRequest already returns the parsed JSON response, so no need to check .ok or call .text()
+        return response;
       } catch (err) {
         console.error("Update API error:", err);
         throw err;
@@ -200,10 +186,11 @@ const ProductForm = ({ initialData, onClose }: ProductFormProps) => {
       formData.append('image', file);
       
       try {
-        // Use the public upload endpoint without auth to avoid session issues
-        const response = await fetch("/api/upload", {
+        // Use the admin upload endpoint with auth to ensure proper permissions
+        const response = await fetch("/api/admin/upload", {
           method: "POST",
-          body: formData
+          body: formData,
+          credentials: "include" // Include credentials for admin session
         });
         
         if (!response.ok) {
