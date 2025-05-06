@@ -10,9 +10,9 @@
     "dev:frontend": "vite --config vite.config.ts",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "vite build",
-    "build:backend": "tsc",
+    "build:backend": "tsc --noEmit false",
     "start": "node dist/server/index.js",
-    "vercel-build": "npm run build",
+    "vercel-build": "npm run build:frontend",
     "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate:pg"
