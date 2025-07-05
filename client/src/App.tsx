@@ -15,12 +15,12 @@ import JuiceChat from "./pages/JuiceChat";
 import NotFound from "./pages/not-found";
 
 // Admin Pages
-import AdminLogin from "./pages/Admin/Login";
-import AdminDashboard from "./pages/Admin/Dashboard";
-import AdminProducts from "./pages/Admin/Products";
-import AdminOrders from "./pages/Admin/Orders";
-import AdminSubscriptions from "./pages/Admin/Subscriptions";
-import AdminProfile from "./pages/Admin/Profile";
+import AdminLogin from "./pages/Admin/Login.tsx";
+import AdminDashboard from "./pages/Admin/Dashboard.tsx";
+import AdminProducts from "./pages/Admin/Products.tsx";
+import AdminOrders from "./pages/Admin/Orders.tsx";
+import AdminSubscriptions from "./pages/Admin/Subscriptions.tsx";
+import AdminProfile from "./pages/Admin/Profile.tsx";
 
 // Layout Components
 import Header from "./components/layout/Header";
