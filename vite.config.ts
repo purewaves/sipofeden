@@ -4,7 +4,6 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  root: './client',
   base: '/',
   resolve: {
     alias: {
@@ -30,9 +29,14 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../dist',
+    outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'client/index.html')
+      }
+    }
   },
   // Ensure compatible with Vercel deployment
   optimizeDeps: {

@@ -19,7 +19,8 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

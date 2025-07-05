@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "outDir": "../dist",
+    "rootDir": "../",
+    "moduleResolution": "nodenext",
+    "noEmit": false,
+    "declaration": true,
+    "allowImportingTsExtensions": false,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "baseUrl": "../",
+    "paths": {
+      "@shared/*": ["shared/dist/*"]
+    },
+    "lib": ["ES2020"],
+    "module": "nodenext"
+  },
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "../client", "../vite.config.ts", "../create-tables.ts", "./migrations.ts", "./vite.ts", "../shared"]
+}
