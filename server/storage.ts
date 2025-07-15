@@ -109,11 +109,15 @@ export class DatabaseStorage implements IStorage {
       ttl: 86400 // 24 hours - longer session timeout
     });
     
-    // Check if admin exists, if not create default admin
-    this.initializeAdmin();
+    // Try to check if admin exists, if not create default admin
+    this.initializeAdmin().catch(error => {
+      console.log("Admin initialization failed:", error.message);
+    });
     
-    // Create default website settings if needed
-    this.createDefaultWebsiteSettingsIfNeeded();
+    // Try to create default website settings if needed
+    this.createDefaultWebsiteSettingsIfNeeded().catch(error => {
+      console.log("Website settings initialization failed:", error.message);
+    });
   }
   
   private async initializeAdmin() {

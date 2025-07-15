@@ -212,11 +212,19 @@ app.use((req, res, next) => {
 // Initialize the application
 (async () => {
   try {
-    // Run database migrations
-    await runMigrations();
-    
-    // Seed the database with initial data
-    await seedDatabase();
+    // Try to run database migrations
+    try {
+      log("Running database migrations...");
+      await runMigrations();
+      log("Database migrations completed");
+
+      log("Seeding database...");
+      await seedDatabase();
+      log("Database seeding completed");
+    } catch (dbError) {
+      log(`Database initialization failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+      log("Application will start without database initialization. Database may need to be manually configured.");
+    }
     
     // Register API routes
     const server = await registerRoutes(app);
