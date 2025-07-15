@@ -1,18 +1,18 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, primaryKey, timestamp } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Juice product
-export const juices = pgTable("juices", {
-  id: serial("id").primaryKey(),
+export const juices = sqliteTable("juices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  price: doublePrecision("price").notNull(),
+  price: real("price").notNull(),
   imageUrl: text("image_url").notNull(),
   category: text("category").notNull(),
   stock: integer("stock").notNull().default(0),
-  featured: boolean("featured").default(false),
+  featured: integer("featured", { mode: 'boolean' }).default(false),
   sku: text("sku").notNull().unique()
 });
 
@@ -25,12 +25,9 @@ export const insertJuiceSchema = createInsertSchema(juices).omit({
   id: true
 });
 
-// Dynamic types for runtime use (not stored in database)
-// These will be added by the application logic at runtime
-
 // Cart items
-export const cartItems = pgTable("cart_items", {
-  id: serial("id").primaryKey(),
+export const cartItems = sqliteTable("cart_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   juiceId: integer("juice_id").notNull(),
   sessionId: text("session_id").notNull(),
   quantity: integer("quantity").notNull().default(1)
@@ -48,14 +45,14 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
 });
 
 // Subscription plans
-export const subscriptionPlans = pgTable("subscription_plans", {
-  id: serial("id").primaryKey(),
+export const subscriptionPlans = sqliteTable("subscription_plans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  price: doublePrecision("price").notNull(),
+  price: real("price").notNull(),
   frequency: text("frequency").notNull(), // weekly, monthly, etc.
-  features: text("features").array().notNull(), // Array of features
-  createdAt: timestamp("created_at").defaultNow()
+  features: text("features").notNull(), // JSON string of features array
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
 });
 
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
@@ -64,17 +61,17 @@ export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans
 });
 
 // Subscription orders (for individual customer subscriptions)
-export const subscriptions = pgTable("subscriptions", {
-  id: serial("id").primaryKey(),
+export const subscriptions = sqliteTable("subscriptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   planId: integer("plan_id").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
   address: text("address").notNull(),
   status: text("status").notNull().default("active"), // active, paused, cancelled
-  startDate: timestamp("start_date").notNull(),
-  nextDelivery: timestamp("next_delivery"),
-  createdAt: timestamp("created_at").defaultNow()
+  startDate: text("start_date").notNull(),
+  nextDelivery: text("next_delivery"),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
 });
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
@@ -90,14 +87,14 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 // Juice Bundles
-export const bundles = pgTable("bundles", {
-  id: serial("id").primaryKey(),
+export const bundles = sqliteTable("bundles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  price: doublePrecision("price").notNull(),
-  juiceIds: integer("juice_ids").array().notNull(), // Array of juice IDs
+  price: real("price").notNull(),
+  juiceIds: text("juice_ids").notNull(), // JSON string of juice IDs array
   imageUrl: text("image_url"),
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
 });
 
 export const insertBundleSchema = createInsertSchema(bundles).omit({
@@ -106,11 +103,11 @@ export const insertBundleSchema = createInsertSchema(bundles).omit({
 });
 
 // Order Table
-export const orders = pgTable("orders", {
-  id: serial("id").primaryKey(),
+export const orders = sqliteTable("orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   customerName: text("customer_name").notNull(),
   customerEmail: text("customer_email").notNull(),
-  total: doublePrecision("total").notNull(),
+  total: real("total").notNull(),
   status: text("status").notNull().default("pending"),
   createdAt: text("created_at").notNull() // Store as ISO string
 });
@@ -123,13 +120,13 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true
 });
 
-// Order Items
-export const orderItems = pgTable("order_items", {
-  id: serial("id").primaryKey(),
+// Order Items Table
+export const orderItems = sqliteTable("order_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   orderId: integer("order_id").notNull(),
   juiceId: integer("juice_id").notNull(),
   quantity: integer("quantity").notNull(),
-  price: doublePrecision("price").notNull()
+  price: real("price").notNull() // Price at time of order
 });
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -147,43 +144,135 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
   id: true
 });
 
-// Admin users
-export const admins = pgTable("admins", {
-  id: serial("id").primaryKey(),
+// Admin table
+export const admins = sqliteTable("admins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email").default(""),
-  fullName: text("full_name").default(""),
-  phoneNumber: text("phone_number").default(""),
-  isFirstLogin: boolean("is_first_login").default(true),
-  lastLogin: text("last_login").default(""),
+  email: text("email").default(''),
+  fullName: text("full_name").default(''),
+  phoneNumber: text("phone_number").default(''),
+  isFirstLogin: integer("is_first_login", { mode: 'boolean' }).default(true),
+  lastLogin: text("last_login").default('')
 });
 
 export const insertAdminSchema = createInsertSchema(admins).omit({
   id: true
 });
 
-export const updateAdminProfileSchema = createInsertSchema(admins).omit({
+// Loyalty Customers table
+export const loyaltyCustomers = sqliteTable("loyalty_customers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  totalPoints: integer("total_points").notNull().default(0),
+  tier: text("tier").notNull().default("Bronze"),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
+});
+
+export const insertLoyaltyCustomerSchema = createInsertSchema(loyaltyCustomers).omit({
   id: true,
-  username: true,
-  password: true,
-  isFirstLogin: true,
-  lastLogin: true
+  createdAt: true
 });
 
-export const updateAdminPasswordSchema = z.object({
-  currentPassword: z.string().min(6, "Current password is required"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password is required")
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"]
+// Loyalty Rewards table
+export const loyaltyRewards = sqliteTable("loyalty_rewards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  customerId: integer("customer_id").notNull(),
+  pointsUsed: integer("points_used").notNull(),
+  rewardType: text("reward_type").notNull(),
+  rewardValue: real("reward_value").notNull(),
+  status: text("status").notNull().default("active"),
+  redeemedAt: text("redeemed_at"),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
 });
 
-// Schema types
-export type Juice = typeof juices.$inferSelect & {
-  calculatedSales?: number; // Optional runtime-only property for analytics
-};
+export const loyaltyRewardsRelations = relations(loyaltyRewards, ({ one }) => ({
+  customer: one(loyaltyCustomers, {
+    fields: [loyaltyRewards.customerId],
+    references: [loyaltyCustomers.id]
+  })
+}));
+
+export const insertLoyaltyRewardSchema = createInsertSchema(loyaltyRewards).omit({
+  id: true,
+  createdAt: true
+});
+
+// Loyalty Activities table
+export const loyaltyActivities = sqliteTable("loyalty_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  customerId: integer("customer_id").notNull(),
+  activityType: text("activity_type").notNull(),
+  pointsEarned: integer("points_earned").notNull(),
+  source: text("source").notNull(),
+  sourceId: text("source_id"),
+  description: text("description"),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
+});
+
+export const loyaltyActivitiesRelations = relations(loyaltyActivities, ({ one }) => ({
+  customer: one(loyaltyCustomers, {
+    fields: [loyaltyActivities.customerId],
+    references: [loyaltyCustomers.id]
+  })
+}));
+
+export const insertLoyaltyActivitySchema = createInsertSchema(loyaltyActivities).omit({
+  id: true,
+  createdAt: true
+});
+
+// Website Settings table
+export const websiteSettings = sqliteTable("website_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  siteName: text("site_name").notNull().default("Sip of Eden"),
+  siteDescription: text("site_description").notNull().default("Organic Cold-Pressed Juices"),
+  contactEmail: text("contact_email").notNull().default("hello@sipofeden.com"),
+  contactPhone: text("contact_phone").notNull().default("+1 (555) 123-4567"),
+  address: text("address").notNull().default("123 Juice St, Fresh City, FC 12345"),
+  socialMediaLinks: text("social_media_links").notNull().default('{}'), // JSON string
+  businessHours: text("business_hours").notNull().default('{}'), // JSON string
+  shippingInfo: text("shipping_info").notNull().default("We offer free shipping on orders over $50"),
+  returnPolicy: text("return_policy").notNull().default("30-day return policy on all products"),
+  privacyPolicy: text("privacy_policy").notNull().default("Your privacy is important to us"),
+  termsOfService: text("terms_of_service").notNull().default("Terms and conditions apply"),
+  aboutUs: text("about_us").notNull().default("We are passionate about providing fresh, organic cold-pressed juices"),
+  updatedAt: text("updated_at").default('CURRENT_TIMESTAMP')
+});
+
+export const insertWebsiteSettingsSchema = createInsertSchema(websiteSettings).omit({
+  id: true,
+  updatedAt: true
+});
+
+// Admin Notification Subscriptions table
+export const adminNotificationSubscriptions = sqliteTable("admin_notification_subscriptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  adminId: integer("admin_id").notNull(),
+  subscription: text("subscription").notNull(), // JSON string of push subscription
+  userAgent: text("user_agent"),
+  deviceName: text("device_name"),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP'),
+  lastUsed: text("last_used")
+});
+
+export const adminNotificationSubscriptionsRelations = relations(adminNotificationSubscriptions, ({ one }) => ({
+  admin: one(admins, {
+    fields: [adminNotificationSubscriptions.adminId],
+    references: [admins.id]
+  })
+}));
+
+export const insertAdminNotificationSubscriptionSchema = createInsertSchema(adminNotificationSubscriptions).omit({
+  id: true,
+  createdAt: true
+});
+
+// Type exports
+export type Juice = typeof juices.$inferSelect;
 export type InsertJuice = z.infer<typeof insertJuiceSchema>;
 
 export type CartItem = typeof cartItems.$inferSelect;
@@ -204,82 +293,11 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
-// Loyalty Points
-export const loyaltyCustomers = pgTable("loyalty_customers", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  points: integer("points").notNull().default(0),
-  tier: text("tier").notNull().default("bronze"), // bronze, silver, gold, platinum
-  createdAt: timestamp("created_at").defaultNow()
-});
-
-export const insertLoyaltyCustomerSchema = createInsertSchema(loyaltyCustomers).omit({
-  id: true,
-  points: true,
-  tier: true,
-  createdAt: true
-});
-
-export const updateLoyaltyPointsSchema = z.object({
-  email: z.string().email("Valid email is required"),
-  points: z.number().int("Points must be a whole number"),
-  source: z.string() // 'order', 'subscription', 'referral', etc.
-});
-
-export const loyaltyRewards = pgTable("loyalty_rewards", {
-  id: serial("id").primaryKey(),
-  customerId: integer("customer_id").notNull(),
-  description: text("description").notNull(),
-  pointsRequired: integer("points_required").notNull(),
-  redeemed: boolean("redeemed").default(false),
-  redeemedAt: timestamp("redeemed_at"),
-  expiresAt: timestamp("expires_at")
-});
-
-export const loyaltyRewardsRelations = relations(loyaltyRewards, ({ one }) => ({
-  customer: one(loyaltyCustomers, {
-    fields: [loyaltyRewards.customerId],
-    references: [loyaltyCustomers.id]
-  })
-}));
-
-export const insertLoyaltyRewardSchema = createInsertSchema(loyaltyRewards).omit({
-  id: true,
-  redeemed: true,
-  redeemedAt: true
-});
-
-export const loyaltyActivities = pgTable("loyalty_activities", {
-  id: serial("id").primaryKey(),
-  customerId: integer("customer_id").notNull(),
-  points: integer("points").notNull(),
-  type: text("type").notNull(), // 'earn' or 'redeem'
-  source: text("source").notNull(), // 'order', 'subscription', 'referral', 'reward', etc.
-  sourceId: text("source_id"), // Optional reference to the source object ID (order ID, etc.)
-  createdAt: timestamp("created_at").defaultNow()
-});
-
-export const loyaltyActivitiesRelations = relations(loyaltyActivities, ({ one }) => ({
-  customer: one(loyaltyCustomers, {
-    fields: [loyaltyActivities.customerId],
-    references: [loyaltyCustomers.id]
-  })
-}));
-
-export const insertLoyaltyActivitySchema = createInsertSchema(loyaltyActivities).omit({
-  id: true,
-  createdAt: true
-});
-
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
-export type UpdateAdminProfile = z.infer<typeof updateAdminProfileSchema>;
-export type UpdateAdminPassword = z.infer<typeof updateAdminPasswordSchema>;
 
 export type LoyaltyCustomer = typeof loyaltyCustomers.$inferSelect;
 export type InsertLoyaltyCustomer = z.infer<typeof insertLoyaltyCustomerSchema>;
-export type UpdateLoyaltyPoints = z.infer<typeof updateLoyaltyPointsSchema>;
 
 export type LoyaltyReward = typeof loyaltyRewards.$inferSelect;
 export type InsertLoyaltyReward = z.infer<typeof insertLoyaltyRewardSchema>;
@@ -287,51 +305,24 @@ export type InsertLoyaltyReward = z.infer<typeof insertLoyaltyRewardSchema>;
 export type LoyaltyActivity = typeof loyaltyActivities.$inferSelect;
 export type InsertLoyaltyActivity = z.infer<typeof insertLoyaltyActivitySchema>;
 
-// Website Settings
-export const websiteSettings = pgTable("website_settings", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().default("Sip of Eden"),
-  businessEmail: text("business_email").notNull().default("contact@sipofeden.com"),
-  phoneNumber: text("phone_number").notNull().default("+234 000 0000 000"),
-  address: text("address").notNull().default("Lagos, Nigeria"),
-  instagram: text("instagram").default("https://instagram.com/sipofeden"),
-  twitter: text("twitter").default("https://twitter.com/sipofeden"),
-  facebook: text("facebook").default("https://facebook.com/sipofeden"),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-
-export const updateWebsiteSettingsSchema = createInsertSchema(websiteSettings).omit({
-  id: true,
-  updatedAt: true
-});
-
 export type WebsiteSettings = typeof websiteSettings.$inferSelect;
-export type UpdateWebsiteSettings = z.infer<typeof updateWebsiteSettingsSchema>;
-
-// Admin Notification Subscriptions
-export const adminNotificationSubscriptions = pgTable("admin_notification_subscriptions", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id").references(() => admins.id, { onDelete: 'cascade' }),
-  subscription: text("subscription").notNull(), // JSON string of PushSubscription object
-  userAgent: text("user_agent"), // Browser user agent info
-  deviceName: text("device_name"), // Custom device name (optional)
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  lastUsedAt: timestamp("last_used_at").defaultNow(),
-});
-
-export const adminNotificationSubscriptionsRelations = relations(adminNotificationSubscriptions, ({ one }) => ({
-  admin: one(admins, {
-    fields: [adminNotificationSubscriptions.adminId],
-    references: [admins.id]
-  })
-}));
+export type UpdateWebsiteSettings = Partial<InsertWebsiteSettings>;
+export type InsertWebsiteSettings = z.infer<typeof insertWebsiteSettingsSchema>;
 
 export type AdminNotificationSubscription = typeof adminNotificationSubscriptions.$inferSelect;
-export type InsertAdminNotificationSubscription = typeof adminNotificationSubscriptions.$inferInsert;
-export const insertAdminNotificationSubscriptionSchema = createInsertSchema(adminNotificationSubscriptions).omit({
-  id: true,
-  createdAt: true,
-  lastUsedAt: true
-});
-export type UpdateAdminNotificationSubscription = Partial<Omit<InsertAdminNotificationSubscription, 'id'>>;
+export type InsertAdminNotificationSubscription = z.infer<typeof insertAdminNotificationSubscriptionSchema>;
+export type UpdateAdminNotificationSubscription = Partial<InsertAdminNotificationSubscription>;
+
+export type UpdateAdminProfile = {
+  email?: string;
+  fullName?: string;
+  phoneNumber?: string;
+};
+
+export type UpdateLoyaltyPoints = {
+  customerId: number;
+  points: number;
+  type: "earned" | "spent";
+  source: string;
+  sourceId?: string;
+};

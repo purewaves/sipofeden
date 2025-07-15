@@ -8,15 +8,16 @@ export async function runMigrations() {
   console.log("Running database migrations...");
   
   try {
-    // Check if the email column exists in the admins table
+    // Check if the email column exists in the admins table (SQLite version)
     const checkColumnResult = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'admins' AND column_name = 'email'
+      PRAGMA table_info(admins)
     `);
     
-    // If the column doesn't exist, add the new columns
-    if (checkColumnResult.rows.length === 0) {
+    // Check if email column exists in the results
+    const hasEmailColumn = checkColumnResult.rows.some((row: any) => row.name === 'email');
+    
+    // If the column doesn't exist, table needs to be created or updated
+    if (!hasEmailColumn) {
       console.log("Adding new columns to admins table...");
       
       await pool.query(`

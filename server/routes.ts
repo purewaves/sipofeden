@@ -17,10 +17,9 @@ import {
   insertBundleSchema,
   insertOrderSchema, 
   insertOrderItemSchema,
-  updateAdminProfileSchema,
-  updateAdminPasswordSchema,
-  updateWebsiteSettingsSchema,
-  adminNotificationSubscriptions
+  insertWebsiteSettingsSchema,
+  adminNotificationSubscriptions,
+  UpdateAdminProfile
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {

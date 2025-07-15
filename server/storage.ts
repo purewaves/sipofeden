@@ -17,9 +17,10 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
 import session from "express-session";
-import { pool } from "./db";
+import MemoryStore from "memorystore";
+
+const MemoryStoreConstructor = MemoryStore(session);
 
 export interface IStorage {
   // Juice operations
@@ -94,19 +95,13 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-const PostgresSessionStore = connectPg(session);
-
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    // Set up PostgreSQL session store with more robust configuration
-    this.sessionStore = new PostgresSessionStore({ 
-      pool,
-      createTableIfMissing: true,
-      tableName: 'session', // standard table name
-      schemaName: 'public', // ensure we're in the public schema
-      ttl: 86400 // 24 hours - longer session timeout
+    // Set up memory session store for SQLite compatibility
+    this.sessionStore = new MemoryStoreConstructor({
+      checkPeriod: 86400000 // prune expired entries every 24h
     });
     
     // Try to check if admin exists, if not create default admin
