@@ -187,7 +187,7 @@ const Subscribe = () => {
                         <CardContent>
                           <p className="text-sm mb-4">{plan.description}</p>
                           <ul className="space-y-2">
-                            {plan.features.map((feature, index) => (
+                            {(Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || '[]')).map((feature, index) => (
                               <li key={index} className="flex items-start">
                                 <Check className="h-4 w-4 text-primary mr-2 mt-1 flex-shrink-0" />
                                 <span className="text-sm">{feature}</span>
