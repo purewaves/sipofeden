@@ -374,7 +374,12 @@ export class DatabaseStorage implements IStorage {
   
   // Bundle operations
   async getAllBundles(): Promise<Bundle[]> {
-    return db.select().from(bundles);
+    try {
+      return await db.select().from(bundles);
+    } catch (error) {
+      console.error('Error getting bundles:', error);
+      return [];
+    }
   }
   
   async getBundleById(id: number): Promise<Bundle | undefined> {

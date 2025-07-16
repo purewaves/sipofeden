@@ -625,6 +625,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertSubscriptionSchema.parse(req.body);
       const subscription = await storage.createSubscription(validatedData);
+      
+      // Setup reminder system for the new subscription
+      try {
+        const { reminderSystem } = await import('./reminder-system');
+        const reminderIds = await reminderSystem.setupSubscriptionReminders(subscription.id);
+        console.log(`[SUBSCRIPTION] Setup ${reminderIds.length} reminders for subscription ${subscription.id}`);
+      } catch (reminderError) {
+        console.error('[SUBSCRIPTION] Error setting up reminders:', reminderError);
+        // Don't fail the subscription creation if reminder setup fails
+      }
+      
       res.status(201).json(subscription);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -816,7 +827,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bundles = await storage.getAllBundles();
       res.json(bundles);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch bundles" });
+      console.error('Bundles API error:', error);
+      res.json([]);
     }
   });
 

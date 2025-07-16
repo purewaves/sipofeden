@@ -1,5 +1,5 @@
 // Sip of Eden Service Worker
-const CACHE_NAME = 'sip-of-eden-cache-v1';
+const CACHE_NAME = `sip-of-eden-cache-v${Date.now()}`;
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache for offline use
@@ -49,7 +49,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Serve cached content when offline
+// Fetch Event - Network first for API, cache first for assets
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {

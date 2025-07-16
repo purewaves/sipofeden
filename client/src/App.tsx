@@ -74,7 +74,7 @@ function Router() {
 
 function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground" key={Date.now()}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CartProvider>
