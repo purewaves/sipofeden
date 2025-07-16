@@ -821,14 +821,10 @@ export class DatabaseStorage implements IStorage {
   
   async getAdminNotificationSubscriptions(adminId: number): Promise<AdminNotificationSubscription[]> {
     try {
-      return db.select()
+      return await db.select()
         .from(adminNotificationSubscriptions)
-        .where(
-          and(
-            eq(adminNotificationSubscriptions.adminId, adminId),
-            eq(adminNotificationSubscriptions.isActive, true)
-          )
-        );
+        .where(eq(adminNotificationSubscriptions.adminId, adminId))
+        .then(results => results.filter(sub => sub.isActive));
     } catch (error) {
       console.error('Error getting admin notification subscriptions:', error);
       throw error;

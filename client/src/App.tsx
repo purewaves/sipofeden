@@ -74,14 +74,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CartProvider>
-          <Router />
-          <Toaster />
-        </CartProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <div className="min-h-screen bg-background text-foreground">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <CartProvider>
+            <Router />
+            <Toaster />
+          </CartProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </div>
   );
 }
 
