@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, ShoppingCart, MessageCircle } from "lucide-react";
+import { Menu, X, ShoppingCart, MessageCircle, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/ui/logo";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { toggleCart, cartItems } = useCart();
+  const { user, logoutMutation } = useAuth();
   
   const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   
@@ -47,7 +49,7 @@ const Header = () => {
             </Link>
           </nav>
           
-          {/* Cart and Mobile Menu */}
+          {/* Cart, Auth, and Mobile Menu */}
           <div className="flex items-center space-x-4">
             <Button 
               variant="ghost" 
@@ -62,6 +64,31 @@ const Header = () => {
                 </span>
               )}
             </Button>
+
+            {/* Authentication Actions - Desktop */}
+            <div className="hidden md:flex items-center space-x-2">
+              {user ? (
+                <>
+                  <span className="text-sm text-gray-600">Hi, {user.name}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => logoutMutation.mutate()}
+                    disabled={logoutMutation.isPending}
+                  >
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <Link href="/auth">
+                  <Button variant="ghost" size="sm">
+                    <User className="h-4 w-4 mr-1" />
+                    Login
+                  </Button>
+                </Link>
+              )}
+            </div>
             
             <Button 
               variant="ghost" 
@@ -103,6 +130,35 @@ const Header = () => {
                   Admin
                 </div>
               </Link>
+              
+              {/* Mobile Authentication */}
+              {user ? (
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="text-sm text-gray-600 mb-2">Hi, {user.name}</div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      logoutMutation.mutate();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    disabled={logoutMutation.isPending}
+                    className="w-full justify-start"
+                  >
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-gray-200">
+                  <Link href="/auth">
+                    <div className="font-medium hover:text-primary transition-colors cursor-pointer flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
+                      <User className="h-4 w-4 mr-1" />
+                      Login
+                    </div>
+                  </Link>
+                </div>
+              )}
             </nav>
           </div>
         )}

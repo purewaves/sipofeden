@@ -18,9 +18,12 @@ import {
   insertOrderSchema, 
   insertOrderItemSchema,
   insertWebsiteSettingsSchema,
+  insertUserSchema,
+  insertOtpVerificationSchema,
   adminNotificationSubscriptions,
   UpdateAdminProfile
 } from "@shared/schema";
+import { generateOTP, sendOTPEmail, requireAuth, optionalAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Enhanced middleware to check if admin is authenticated
@@ -1461,6 +1464,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "Failed to send test notification",
         error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  // Email/OTP Authentication Routes
+  
+  // Send OTP to email
+  app.post("/api/send-otp", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ 
+          message: "Valid email address is required",
+          code: "INVALID_EMAIL" 
+        });
+      }
+
+      // Generate OTP
+      const otp = generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+      // Save OTP to database
+      await storage.createOtpVerification({
+        email,
+        otp,
+        expiresAt
+      });
+
+      // Send OTP email
+      const emailSent = await sendOTPEmail(email, otp);
+      
+      if (!emailSent) {
+        return res.status(500).json({ 
+          message: "Failed to send OTP email",
+          code: "EMAIL_SEND_FAILED" 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "OTP sent to your email address",
+        expiresAt 
+      });
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      res.status(500).json({ 
+        message: "Failed to send OTP",
+        code: "OTP_SEND_ERROR" 
+      });
+    }
+  });
+
+  // Verify OTP and login/register user
+  app.post("/api/verify-otp", async (req: Request, res: Response) => {
+    try {
+      const { email, otp, name } = req.body;
+      
+      if (!email || !otp) {
+        return res.status(400).json({ 
+          message: "Email and OTP are required",
+          code: "MISSING_FIELDS" 
+        });
+      }
+
+      // Verify OTP
+      const otpRecord = await storage.getValidOtp(email, otp);
+      if (!otpRecord) {
+        return res.status(401).json({ 
+          message: "Invalid or expired OTP",
+          code: "INVALID_OTP" 
+        });
+      }
+
+      // Mark OTP as used
+      await storage.markOtpAsUsed(otpRecord.id);
+
+      // Check if user exists
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Create new user if registering
+        if (!name) {
+          return res.status(400).json({ 
+            message: "Name is required for new users",
+            code: "NAME_REQUIRED" 
+          });
+        }
+        
+        user = await storage.createUser({
+          email,
+          name,
+          isVerified: true
+        });
+      } else {
+        // Update existing user verification status
+        await storage.updateUserVerification(user.id, true);
+      }
+
+      // Update last login
+      await storage.updateUserLastLogin(user.id);
+
+      // Create session
+      req.session.userId = user.id;
+      req.session.userEmail = user.email;
+      
+      // Save session
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      res.json({ 
+        success: true, 
+        message: user ? "Login successful" : "Account created and logged in",
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isVerified: user.isVerified
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      res.status(500).json({ 
+        message: "Failed to verify OTP",
+        code: "OTP_VERIFY_ERROR" 
+      });
+    }
+  });
+
+  // Register new user (send OTP)
+  app.post("/api/register", async (req: Request, res: Response) => {
+    try {
+      const { email, name } = req.body;
+      
+      if (!email || !name) {
+        return res.status(400).json({ 
+          message: "Email and name are required",
+          code: "MISSING_FIELDS" 
+        });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser && existingUser.isVerified) {
+        return res.status(400).json({ 
+          message: "User with this email already exists",
+          code: "USER_EXISTS" 
+        });
+      }
+
+      // Generate and send OTP
+      const otp = generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      await storage.createOtpVerification({
+        email,
+        otp,
+        expiresAt
+      });
+
+      const emailSent = await sendOTPEmail(email, otp);
+      
+      if (!emailSent) {
+        return res.status(500).json({ 
+          message: "Failed to send verification email",
+          code: "EMAIL_SEND_FAILED" 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Verification code sent to your email",
+        expiresAt 
+      });
+    } catch (error) {
+      console.error("Error registering user:", error);
+      res.status(500).json({ 
+        message: "Failed to register user",
+        code: "REGISTER_ERROR" 
+      });
+    }
+  });
+
+  // Get current user
+  app.get("/api/user", optionalAuth, async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        message: "Not authenticated",
+        code: "NOT_AUTHENTICATED" 
+      });
+    }
+
+    res.json({
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      isVerified: req.user.isVerified,
+      lastLogin: req.user.lastLogin
+    });
+  });
+
+  // Logout user
+  app.post("/api/logout", async (req: Request, res: Response) => {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Error destroying session:", err);
+          return res.status(500).json({ 
+            message: "Failed to logout",
+            code: "LOGOUT_ERROR" 
+          });
+        }
+        
+        res.clearCookie('connect.sid'); // Clear session cookie
+        res.json({ 
+          success: true, 
+          message: "Logged out successfully" 
+        });
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+      res.status(500).json({ 
+        message: "Failed to logout",
+        code: "LOGOUT_ERROR" 
       });
     }
   });

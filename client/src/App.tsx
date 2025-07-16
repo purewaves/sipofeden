@@ -10,6 +10,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Subscribe from "@/pages/Subscribe";
 import Checkout from "@/pages/Checkout";
 import JuiceChat from "@/pages/JuiceChat";
+import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
 
 // Admin Pages
@@ -28,6 +29,7 @@ import CartSidebar from "@/components/CartSidebar";
 // Context Providers
 import { CartProvider } from "@/hooks/useCart";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/lib/protected-route";
 import { ChatAssistant } from "@/components/ChatAssistant";
 
 function Router() {
@@ -47,6 +49,7 @@ function Router() {
           <Route path="/subscribe" component={Subscribe} />
           <Route path="/checkout" component={Checkout} />
           <Route path="/juice-chat" component={JuiceChat} />
+          <Route path="/auth" component={AuthPage} />
           
           {/* Admin Routes */}
           <Route path="/admin" component={AdminLogin} />

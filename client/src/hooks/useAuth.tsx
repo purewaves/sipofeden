@@ -1,239 +1,129 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
-import { useLocation } from 'wouter';
+import { createContext, ReactNode, useContext } from "react";
+import {
+  useQuery,
+  useMutation,
+  UseMutationResult,
+} from "@tanstack/react-query";
+import { User } from "@shared/schema";
+import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-interface Admin {
-  id: number;
-  username: string;
-  email?: string;
-  fullName?: string;
-  phoneNumber?: string;
-}
+type AuthContextType = {
+  user: User | null;
+  isLoading: boolean;
+  error: Error | null;
+  sendOtpMutation: UseMutationResult<any, Error, { email: string }>;
+  verifyOtpMutation: UseMutationResult<any, Error, { email: string; otp: string; name?: string }>;
+  registerMutation: UseMutationResult<any, Error, { email: string; name: string }>;
+  logoutMutation: UseMutationResult<void, Error, void>;
+};
 
-interface AuthContextType {
-  admin: Admin | null;
-  isAuthenticated: boolean;
-  isValidating: boolean;
-  login: (admin: Admin) => void;
-  logout: () => void;
-  validateSession: () => Promise<boolean>;
-  refreshSession: () => Promise<void>;
-}
+export const AuthContext = createContext<AuthContextType | null>(null);
 
-// Create context with default values to avoid undefined checks
-const AuthContext = createContext<AuthContextType>({
-  admin: null,
-  isAuthenticated: false,
-  isValidating: false,
-  login: () => {},
-  logout: () => {},
-  validateSession: async () => false,
-  refreshSession: async () => {}
-});
-
-// Enhanced Auth Provider with robust session management
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Load initial state from localStorage
-  const storedAdmin = localStorage.getItem('admin');
-  const initialAdmin = storedAdmin ? JSON.parse(storedAdmin) : null;
-  
-  // State management
-  const [admin, setAdmin] = useState<Admin | null>(initialAdmin);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!initialAdmin);
-  const [isValidating, setIsValidating] = useState(false);
-  
-  // Keep a last checked timestamp to prevent excessive validation
-  const lastValidatedRef = useRef<number>(0);
-  const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   const { toast } = useToast();
-  const [, navigate] = useLocation();
+  
+  const {
+    data: user,
+    error,
+    isLoading,
+  } = useQuery<User | undefined, Error>({
+    queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
 
-  // Enhanced login function
-  const login = useCallback((adminData: Admin) => {
-    // Store admin data in localStorage for persistence across page refreshes
-    localStorage.setItem('admin', JSON.stringify(adminData));
-    setAdmin(adminData);
-    setIsAuthenticated(true);
-    lastValidatedRef.current = Date.now();
-    
-    // Set up session refresh
-    scheduleSessionRefresh();
-  }, []);
-
-  // Function to schedule periodic session refresh
-  const scheduleSessionRefresh = useCallback(() => {
-    // Clear any existing timeout
-    if (sessionTimeoutRef.current) {
-      clearTimeout(sessionTimeoutRef.current);
-    }
-    
-    // Set up new timeout - refresh every 5 minutes
-    sessionTimeoutRef.current = setTimeout(() => {
-      refreshSession();
-    }, 5 * 60 * 1000); // 5 minutes
-  }, []);
-
-  // Robust logout function
-  const logout = useCallback(async () => {
-    try {
-      // Clear any session refresh timer
-      if (sessionTimeoutRef.current) {
-        clearTimeout(sessionTimeoutRef.current);
-        sessionTimeoutRef.current = null;
-      }
-      
-      // Make API request to clear server-side session
-      await apiRequest('POST', '/api/admin/logout', {});
-    } catch (error) {
-      console.error('Error during logout:', error);
-    } finally {
-      // Always clear local state even if API fails
-      localStorage.removeItem('admin');
-      setAdmin(null);
-      setIsAuthenticated(false);
-      navigate('/admin');
-    }
-  }, [navigate]);
-
-  // Silent session refresh function
-  const refreshSession = useCallback(async (): Promise<void> => {
-    if (!admin) return;
-    
-    try {
-      // Make a lightweight request to keep session alive
-      const response = await fetch('/api/admin/profile', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'X-Session-Refresh': 'true'
-        }
+  const sendOtpMutation = useMutation({
+    mutationFn: async ({ email }: { email: string }) => {
+      const res = await apiRequest("POST", "/api/send-otp", { email });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "OTP Sent",
+        description: data.message || "Check your email for the verification code",
       });
-      
-      if (response.ok) {
-        // Session is still valid, update last validated time
-        lastValidatedRef.current = Date.now();
-        
-        // Schedule next refresh
-        scheduleSessionRefresh();
-      } else if (response.status === 440 || response.status === 401) {
-        // Session expired, logout
-        console.warn('Session expired during refresh');
-        
-        // Show toast notification
-        toast({
-          title: "Session Expired",
-          description: "Please log in again",
-          variant: "destructive"
-        });
-        
-        // Clear state
-        localStorage.removeItem('admin');
-        setAdmin(null);
-        setIsAuthenticated(false);
-        navigate('/admin');
-      }
-    } catch (error) {
-      console.error('Error refreshing session:', error);
-      // Don't logout automatically on network errors
-    }
-  }, [admin, navigate, toast, scheduleSessionRefresh]);
-
-  // Enhanced session validation with specific error handling
-  const validateSession = useCallback(async (): Promise<boolean> => {
-    // If no admin, session is invalid
-    if (!admin) return false;
-    
-    // If recently validated (within 10 seconds), don't revalidate
-    // This prevents excessive validation requests during rapid navigation
-    const now = Date.now();
-    if (now - lastValidatedRef.current < 10000) {
-      return true;
-    }
-    
-    setIsValidating(true);
-    
-    try {
-      const response = await fetch('/api/admin/profile', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'X-Session-Validate': 'true'
-        }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send OTP",
+        description: error.message,
+        variant: "destructive",
       });
-      
-      setIsValidating(false);
-      
-      if (response.ok) {
-        // Session is valid
-        lastValidatedRef.current = now;
-        scheduleSessionRefresh();
-        return true;
-      } else if (response.status === 440) {
-        // Special case: session expired
-        console.warn('Session expired during validation');
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive"
-        });
-        
-        // Clear auth state
-        localStorage.removeItem('admin');
-        setAdmin(null);
-        setIsAuthenticated(false);
-        navigate('/admin');
-        return false;
-      } else if (response.status === 401) {
-        // Authentication failed
-        console.log('Authentication failed during validation');
-        localStorage.removeItem('admin');
-        setAdmin(null);
-        setIsAuthenticated(false);
-        return false;
-      }
-      
-      // Other error
-      console.log('Session validation failed with status:', response.status);
-      return false;
-    } catch (error) {
-      console.error('Error validating session:', error);
-      setIsValidating(false);
-      // Don't reset auth state on network errors
-      return false;
-    }
-  }, [admin, navigate, toast, scheduleSessionRefresh]);
+    },
+  });
 
-  // Effect to validate session and set up refresh on mount
-  useEffect(() => {
-    if (admin) {
-      // Initial validation on mount
-      validateSession().then(isValid => {
-        if (isValid) {
-          scheduleSessionRefresh();
-        }
+  const verifyOtpMutation = useMutation({
+    mutationFn: async ({ email, otp, name }: { email: string; otp: string; name?: string }) => {
+      const res = await apiRequest("POST", "/api/verify-otp", { email, otp, name });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/user"], data.user);
+      toast({
+        title: "Login Successful",
+        description: data.message || "Welcome to Sip of Eden!",
       });
-      
-      // Cleanup function to clear timeout
-      return () => {
-        if (sessionTimeoutRef.current) {
-          clearTimeout(sessionTimeoutRef.current);
-        }
-      };
-    }
-  }, [admin, validateSession, scheduleSessionRefresh]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verification Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async ({ email, name }: { email: string; name: string }) => {
+      const res = await apiRequest("POST", "/api/register", { email, name });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Registration Started",
+        description: data.message || "Check your email for the verification code",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Registration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(["/api/user"], null);
+      queryClient.clear(); // Clear all cached data
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Logout Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <AuthContext.Provider
       value={{
-        admin,
-        isAuthenticated,
-        isValidating,
-        login,
-        logout,
-        validateSession,
-        refreshSession
+        user: user ?? null,
+        isLoading,
+        error,
+        sendOtpMutation,
+        verifyOtpMutation,
+        registerMutation,
+        logoutMutation,
       }}
     >
       {children}
@@ -241,5 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook to use the auth context
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}

@@ -118,6 +118,11 @@ const Subscribe = () => {
 
   return (
     <div className="container mx-auto px-4 py-12">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">Subscribe to Fresh Juices</h1>
+        <p className="text-lg text-gray-600">Get fresh, organic juices delivered to your door - no account needed, just book with your details!</p>
+      </div>
+      
       <div className="flex flex-col md:flex-row items-center">
         <div className="md:w-1/2 mb-8 md:mb-0">
           <img 

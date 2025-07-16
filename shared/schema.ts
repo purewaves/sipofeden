@@ -271,8 +271,43 @@ export const insertAdminNotificationSubscriptionSchema = createInsertSchema(admi
   createdAt: true
 });
 
+// Users table for email/OTP authentication
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  isVerified: integer("is_verified", { mode: 'boolean' }).default(false),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP'),
+  lastLogin: text("last_login")
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  lastLogin: true
+});
+
+// OTP verification table
+export const otpVerifications = sqliteTable("otp_verifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  otp: text("otp").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  isUsed: integer("is_used", { mode: 'boolean' }).default(false),
+  createdAt: text("created_at").default('CURRENT_TIMESTAMP')
+});
+
+export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).omit({
+  id: true,
+  createdAt: true
+});
+
 // Type exports
 export type Juice = typeof juices.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof insertUserSchema._input;
+export type OtpVerification = typeof otpVerifications.$inferSelect;
+export type InsertOtpVerification = typeof insertOtpVerificationSchema._input;
 export type InsertJuice = z.infer<typeof insertJuiceSchema>;
 
 export type CartItem = typeof cartItems.$inferSelect;

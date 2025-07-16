@@ -18,6 +18,8 @@ declare module 'express-session' {
     lastActive?: string;
     userAgent?: string;
     restoredFromFallback?: boolean;
+    userId?: number;
+    userEmail?: string;
   }
 }
 

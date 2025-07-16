@@ -12,11 +12,14 @@ import {
   LoyaltyActivity, InsertLoyaltyActivity,
   WebsiteSettings, UpdateWebsiteSettings,
   AdminNotificationSubscription, UpdateAdminNotificationSubscription,
+  User, InsertUser,
+  OtpVerification, InsertOtpVerification,
   juices, cartItems, subscriptionPlans, subscriptions, bundles, admins, orders, orderItems,
-  loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings, adminNotificationSubscriptions
+  loyaltyCustomers, loyaltyRewards, loyaltyActivities, websiteSettings, adminNotificationSubscriptions,
+  users, otpVerifications
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lte } from "drizzle-orm";
 import session from "express-session";
 import MemoryStore from "memorystore";
 
@@ -65,6 +68,19 @@ export interface IStorage {
   updateAdminProfile(id: number, profileData: UpdateAdminProfile): Promise<Admin | undefined>;
   updateAdminPassword(id: number, currentPassword: string, newPassword: string): Promise<boolean>;
   updateAdminLoginStatus(id: number, isFirstLogin: boolean): Promise<boolean>;
+  
+  // User operations
+  getUserById(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUserVerification(id: number, isVerified: boolean): Promise<boolean>;
+  updateUserLastLogin(id: number): Promise<boolean>;
+  
+  // OTP operations
+  createOtpVerification(otp: InsertOtpVerification): Promise<OtpVerification>;
+  getValidOtp(email: string, otp: string): Promise<OtpVerification | undefined>;
+  markOtpAsUsed(id: number): Promise<boolean>;
+  cleanupExpiredOtps(): Promise<number>;
   
   // Order operations
   createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
@@ -865,6 +881,147 @@ export class DatabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error('Error deleting notification subscription:', error);
+      throw error;
+    }
+  }
+
+  // User operations
+  async getUserById(id: number): Promise<User | undefined> {
+    try {
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, id));
+      return user;
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      throw error;
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    try {
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.email, email.toLowerCase()));
+      return user;
+    } catch (error) {
+      console.error('Error getting user by email:', error);
+      throw error;
+    }
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    try {
+      const [newUser] = await db.insert(users)
+        .values({
+          ...user,
+          email: user.email.toLowerCase()
+        })
+        .returning();
+      return newUser;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  }
+
+  async updateUserVerification(id: number, isVerified: boolean): Promise<boolean> {
+    try {
+      const result = await db.update(users)
+        .set({ isVerified })
+        .where(eq(users.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error updating user verification:', error);
+      throw error;
+    }
+  }
+
+  async updateUserLastLogin(id: number): Promise<boolean> {
+    try {
+      const result = await db.update(users)
+        .set({ lastLogin: new Date().toISOString() })
+        .where(eq(users.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error updating user last login:', error);
+      throw error;
+    }
+  }
+
+  // OTP operations
+  async createOtpVerification(otp: InsertOtpVerification): Promise<OtpVerification> {
+    try {
+      // Clean up any existing unused OTPs for this email
+      await db.delete(otpVerifications)
+        .where(
+          and(
+            eq(otpVerifications.email, otp.email.toLowerCase()),
+            eq(otpVerifications.isUsed, false)
+          )
+        );
+
+      const [newOtp] = await db.insert(otpVerifications)
+        .values({
+          ...otp,
+          email: otp.email.toLowerCase()
+        })
+        .returning();
+      return newOtp;
+    } catch (error) {
+      console.error('Error creating OTP verification:', error);
+      throw error;
+    }
+  }
+
+  async getValidOtp(email: string, otp: string): Promise<OtpVerification | undefined> {
+    try {
+      const [otpRecord] = await db.select()
+        .from(otpVerifications)
+        .where(
+          and(
+            eq(otpVerifications.email, email.toLowerCase()),
+            eq(otpVerifications.otp, otp),
+            eq(otpVerifications.isUsed, false)
+          )
+        );
+
+      // Check if OTP is expired
+      if (otpRecord && new Date(otpRecord.expiresAt) > new Date()) {
+        return otpRecord;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error getting valid OTP:', error);
+      throw error;
+    }
+  }
+
+  async markOtpAsUsed(id: number): Promise<boolean> {
+    try {
+      const result = await db.update(otpVerifications)
+        .set({ isUsed: true })
+        .where(eq(otpVerifications.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error marking OTP as used:', error);
+      throw error;
+    }
+  }
+
+  async cleanupExpiredOtps(): Promise<number> {
+    try {
+      const currentTime = new Date().toISOString();
+      const result = await db.delete(otpVerifications)
+        .where(lte(otpVerifications.expiresAt, currentTime))
+        .returning();
+      return result.length;
+    } catch (error) {
+      console.error('Error cleaning up expired OTPs:', error);
       throw error;
     }
   }

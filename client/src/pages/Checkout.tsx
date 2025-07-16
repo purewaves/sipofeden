@@ -14,12 +14,12 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, Truck, CreditCard, Copy, Plus, Minus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
-// Create a checkout form schema
+// Create a simple checkout form schema for guest orders
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name is required' }),
   email: z.string().email({ message: 'Valid email is required' }),
-  phone: z.string().min(10, { message: 'Valid phone number is required' }),
-  address: z.string().min(5, { message: 'Address is required' }),
+  phone: z.string().min(10, { message: 'Phone number is required' }),
+  address: z.string().min(5, { message: 'Delivery address is required' }),
   notes: z.string().optional()
 });
 
@@ -146,7 +146,10 @@ const CheckoutPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
-      <h1 className="text-3xl font-semibold text-center mb-8">Checkout</h1>
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-semibold mb-2">Quick Checkout</h1>
+        <p className="text-gray-600">No account needed - just enter your details to complete your order</p>
+      </div>
       
       {/* Checkout Steps */}
       <div className="flex justify-center mb-8">
@@ -170,7 +173,8 @@ const CheckoutPage = () => {
         <div className="md:col-span-2">
           {paymentStep === 'shipping' && (
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
+              <h2 className="text-xl font-semibold mb-2">Your Details</h2>
+              <p className="text-sm text-gray-600 mb-4">Enter your information for delivery and order confirmation</p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitShipping)} className="space-y-4">
                   <FormField
