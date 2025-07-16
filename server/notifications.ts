@@ -121,6 +121,14 @@ export async function sendCartAddedNotification(cartItem: any, juice: Juice) {
   try {
     console.log(`[CART NOTIFICATION] Starting to send cart notification for ${juice.name}`);
     
+    // Get all admin notification subscriptions
+    const subscriptions = await storage.getAdminNotificationSubscriptions(1); // Assuming admin ID 1
+    
+    if (subscriptions.length === 0) {
+      console.log(`[CART NOTIFICATION] No active notification subscriptions found`);
+      return;
+    }
+    
     // Get customer info if available
     const customerInfo = cartItem.customerInfo || 'Anonymous shopper';
     

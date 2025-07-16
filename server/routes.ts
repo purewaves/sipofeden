@@ -1362,6 +1362,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Analytics routes
+  app.get("/api/admin/analytics", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { analyticsRoutes } = await import('./analytics');
+      return analyticsRoutes.getAnalytics(req, res);
+    } catch (error) {
+      console.error('Error loading analytics routes:', error);
+      res.status(500).json({ error: 'Failed to load analytics' });
+    }
+  });
+
+  app.get("/api/admin/analytics/overview", isAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { analyticsRoutes } = await import('./analytics');
+      return analyticsRoutes.getOverview(req, res);
+    } catch (error) {
+      console.error('Error loading analytics overview:', error);
+      res.status(500).json({ error: 'Failed to load analytics overview' });
+    }
+  });
+
+  // Chat AI routes
+  app.post("/api/chat/message", async (req: Request, res: Response) => {
+    try {
+      const { chatRoutes } = await import('./ai-chat');
+      return chatRoutes.sendMessage(req, res);
+    } catch (error) {
+      console.error('Error loading chat routes:', error);
+      res.status(500).json({ error: 'Failed to process chat message' });
+    }
+  });
+
+  app.get("/api/chat/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const { chatRoutes } = await import('./ai-chat');
+      return chatRoutes.getSession(req, res);
+    } catch (error) {
+      console.error('Error loading chat session:', error);
+      res.status(500).json({ error: 'Failed to get chat session' });
+    }
+  });
+
+  app.delete("/api/chat/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const { chatRoutes } = await import('./ai-chat');
+      return chatRoutes.clearSession(req, res);
+    } catch (error) {
+      console.error('Error clearing chat session:', error);
+      res.status(500).json({ error: 'Failed to clear chat session' });
+    }
+  });
+
   app.post("/api/admin/notifications/test", isAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       if (!req.session || !req.session.adminId) {

@@ -28,6 +28,7 @@ import CartSidebar from "@/components/CartSidebar";
 // Context Providers
 import { CartProvider } from "@/hooks/useCart";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ChatAssistant } from "@/components/ChatAssistant";
 
 function Router() {
   const [location] = useLocation();
@@ -64,6 +65,7 @@ function Router() {
         <>
           <Footer />
           <CartSidebar />
+          <ChatAssistant />
         </>
       )}
     </div>

@@ -789,8 +789,8 @@ export class DatabaseStorage implements IStorage {
         console.log(`Updating existing subscription for admin ID ${adminId}`);
         const [updatedSubscription] = await db.update(adminNotificationSubscriptions)
           .set({
-            active: true,
-            lastUsedAt: new Date(),
+            isActive: true,
+            lastUsed: new Date().toISOString(),
             userAgent: userAgent || existingSubscriptions[0].userAgent,
             deviceName: deviceName || existingSubscriptions[0].deviceName
           })
@@ -808,7 +808,7 @@ export class DatabaseStorage implements IStorage {
           subscription,
           userAgent,
           deviceName: deviceName || `Device ${Math.floor(Math.random() * 1000)}`,
-          active: true
+          isActive: true
         })
         .returning();
       
@@ -826,7 +826,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(adminNotificationSubscriptions.adminId, adminId),
-            eq(adminNotificationSubscriptions.active, true)
+            eq(adminNotificationSubscriptions.isActive, true)
           )
         );
     } catch (error) {
@@ -843,7 +843,7 @@ export class DatabaseStorage implements IStorage {
       const [updatedSubscription] = await db.update(adminNotificationSubscriptions)
         .set({
           ...data,
-          lastUsedAt: new Date()
+          lastUsed: new Date().toISOString()
         })
         .where(eq(adminNotificationSubscriptions.id, id))
         .returning();
