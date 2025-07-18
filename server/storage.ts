@@ -613,7 +613,7 @@ export class DatabaseStorage implements IStorage {
     const customer = customerResult[0];
     
     // Calculate new points total
-    const newPoints = type === 'earn' ? customer.points + points : Math.max(0, customer.points - points);
+    const newPoints = type === 'earn' ? customer.totalPoints + points : Math.max(0, customer.totalPoints - points);
     
     // Determine tier based on new points
     const tier = this.calculateTier(newPoints);
@@ -621,7 +621,7 @@ export class DatabaseStorage implements IStorage {
     // Update customer points and tier
     const updatedCustomer = await db.update(loyaltyCustomers)
       .set({ 
-        points: newPoints,
+        totalPoints: newPoints,
         tier
       })
       .where(eq(loyaltyCustomers.id, customerId))
@@ -631,8 +631,8 @@ export class DatabaseStorage implements IStorage {
     await db.insert(loyaltyActivities)
       .values({
         customerId,
-        points,
-        type,
+        pointsEarned: points,
+        activityType: type,
         source,
         sourceId
       });
@@ -664,7 +664,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(websiteSettings)
       .set({
         ...settings,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       })
       .where(eq(websiteSettings.id, currentSettings.id))
       .returning();
@@ -716,8 +716,8 @@ export class DatabaseStorage implements IStorage {
     
     const result = await db.update(loyaltyRewards)
       .set({ 
-        redeemed: true,
-        redeemedAt: now
+        status: 'redeemed',
+        redeemedAt: now.toISOString()
       })
       .where(eq(loyaltyRewards.id, rewardId))
       .returning();
@@ -729,7 +729,7 @@ export class DatabaseStorage implements IStorage {
     // Deduct points from customer
     await this.updateLoyaltyPoints(
       reward.customerId,
-      reward.pointsRequired,
+      reward.pointsUsed,
       'redeem',
       'reward',
       reward.id.toString()
@@ -766,13 +766,15 @@ export class DatabaseStorage implements IStorage {
   private async createDefaultWebsiteSettings(): Promise<WebsiteSettings> {
     const result = await db.insert(websiteSettings)
       .values({
-        name: "Sip of Eden",
-        businessEmail: "contact@sipofeden.com",
-        phoneNumber: "+234 000 0000 000",
+        siteName: "Sip of Eden",
+        contactEmail: "contact@sipofeden.com",
+        contactPhone: "+234 000 0000 000",
         address: "Lagos, Nigeria",
-        instagram: "https://instagram.com/sipofeden",
-        twitter: "https://twitter.com/sipofeden",
-        facebook: "https://facebook.com/sipofeden"
+        socialMediaLinks: JSON.stringify({
+          instagram: "https://instagram.com/sipofeden",
+          twitter: "https://twitter.com/sipofeden",
+          facebook: "https://facebook.com/sipofeden"
+        }),
       })
       .returning();
     

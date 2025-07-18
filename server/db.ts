@@ -14,7 +14,7 @@ const dbPath = path.join(dataDir, 'sip-of-eden.db');
 console.log(`Using SQLite database at: ${dbPath}`);
 
 const sqlite = new Database(dbPath);
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(sqlite);
 
 // Enable WAL mode for better performance
 sqlite.pragma('journal_mode = WAL');

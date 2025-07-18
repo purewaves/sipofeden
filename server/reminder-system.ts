@@ -1,6 +1,6 @@
 import { eq, and, gte, lte } from "drizzle-orm";
 import { db } from "./db";
-import { subscriptions, customers } from "@shared/schema";
+import { subscriptions, loyaltyCustomers } from "@shared/schema";
 
 /**
  * Reminder System for Subscription Management
@@ -47,11 +47,11 @@ export class ReminderSystem {
       
       const reminder: ReminderEvent = {
         id: reminderId,
-        customerId: subscription.customerId,
+        customerId: subscription.id,
         subscriptionId: subscriptionId,
         type: 'renewal',
         scheduledDate: reminderDate,
-        message: `Your ${subscription.planName} subscription will renew in ${daysBeforeRenewal} days. Delivery scheduled for ${subscription.nextDeliveryDate}.`,
+        message: `Your subscription will renew in ${daysBeforeRenewal} days. Delivery scheduled for ${subscription.nextDelivery}.`,
         isProcessed: false
       };
 
@@ -86,11 +86,11 @@ export class ReminderSystem {
       
       const reminder: ReminderEvent = {
         id: reminderId,
-        customerId: subscription.customerId,
+        customerId: subscription.id,
         subscriptionId: subscriptionId,
         type: 'payment_due',
         scheduledDate: reminderDate,
-        message: `Payment of $${amount.toFixed(2)} is due for your ${subscription.planName} subscription. Please ensure your payment method is up to date.`,
+        message: `Payment of $${amount.toFixed(2)} is due for your subscription. Please ensure your payment method is up to date.`,
         isProcessed: false
       };
 
@@ -125,11 +125,11 @@ export class ReminderSystem {
       
       const reminder: ReminderEvent = {
         id: reminderId,
-        customerId: subscription.customerId,
+        customerId: subscription.id,
         subscriptionId: subscriptionId,
         type: 'delivery',
         scheduledDate: reminderDate,
-        message: `Your ${subscription.planName} juice delivery is scheduled for tomorrow (${deliveryDate}). Make sure someone is available to receive it!`,
+        message: `Your juice delivery is scheduled for tomorrow (${deliveryDate}). Make sure someone is available to receive it!`,
         isProcessed: false
       };
 
@@ -164,11 +164,11 @@ export class ReminderSystem {
       
       const reminder: ReminderEvent = {
         id: reminderId,
-        customerId: subscription.customerId,
+        customerId: subscription.id,
         subscriptionId: subscriptionId,
         type: 'feedback',
         scheduledDate: reminderDate,
-        message: `How was your recent ${subscription.planName} delivery? We'd love to hear your feedback and help improve your juice experience!`,
+        message: `How was your recent delivery? We'd love to hear your feedback and help improve your juice experience!`,
         isProcessed: false
       };
 
@@ -290,8 +290,8 @@ export class ReminderSystem {
         .where(eq(subscriptions.id, subscriptionId))
         .then(results => results[0]);
         
-      if (subscription && subscription.nextDeliveryDate) {
-        const deliveryId = await this.scheduleDeliveryReminder(subscriptionId, subscription.nextDeliveryDate);
+      if (subscription && subscription.nextDelivery) {
+        const deliveryId = await this.scheduleDeliveryReminder(subscriptionId, subscription.nextDelivery);
         reminderIds.push(deliveryId);
         
         // Schedule feedback reminder (2 days after delivery)
